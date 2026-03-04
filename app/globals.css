@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 340 82% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 40% 94%;
+    --secondary-foreground: 340 82% 45%;
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 5% 45%;
+    --accent: 340 40% 94%;
+    --accent-foreground: 340 82% 45%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 340 82% 55%;
+    --chart-1: 340 82% 55%;
+    --chart-2: 280 65% 60%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 160 60% 45%;
+    --chart-5: 200 70% 50%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  .glass-white {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  .gradient-pink {
+    background: linear-gradient(135deg, #EC4899 0%, #F472B6 50%, #FB7185 100%);
+  }
+  .gradient-pink-soft {
+    background: linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 50%, #FBCFE8 100%);
+  }
+  .gradient-header {
+    background: linear-gradient(135deg, #EC4899 0%, #F472B6 100%);
+  }
+  .text-gradient-pink {
+    background: linear-gradient(135deg, #EC4899, #F472B6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  .pulse-glow-pink {
+    animation: pulseGlowPink 2s ease-in-out infinite;
+  }
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  .fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  .shadow-pink {
+    box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
+  }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes pulseGlowPink {
+  0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.4); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.leaflet-container {
+  border-radius: 12px;
+  z-index: 1;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.3);
+  border-radius: 4px;
+}
+
+input, select, textarea {
+  font-size: 16px !important;
+}
