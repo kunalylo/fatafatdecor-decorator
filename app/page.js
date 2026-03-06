@@ -1909,9 +1909,6 @@ const DpAuthScreen = () => {
         <Button onClick={handleDpLogin} disabled={loading} className="w-full h-12 gradient-pink border-0 text-white font-bold rounded-xl shadow-pink">
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Login as Decorator'}
         </Button>
-        <button onClick={() => { setAppMode('user'); navigate(SCREENS.AUTH) }} className="w-full text-center text-sm text-pink-400 mt-2">
-          Switch to Customer App
-        </button>
         <p className="text-center text-xs text-gray-400">Demo: 9876543210 / 1234</p>
       </CardContent>
     </Card>
