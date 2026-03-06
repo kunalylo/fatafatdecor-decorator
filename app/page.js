@@ -52,7 +52,7 @@ const AppContext = createContext({})
 const useApp = () => useContext(AppContext)
 
 export default function App() {
-  const [screen, setScreen] = useState(SCREENS.AUTH)
+  const [screen, setScreen] = useState(SCREENS.DP_AUTH)
   const [prevScreen, setPrevScreen] = useState(null)
   const [user, setUser] = useState(null)
   const [authMode, setAuthMode] = useState('login')
@@ -90,7 +90,7 @@ export default function App() {
   const [otpInput, setOtpInput] = useState('')
   const dpVideoRef = useRef(null)
   const dpTimerRef = useRef(null)
-  const [appMode, setAppMode] = useState('user') // 'user' or 'decorator'
+  const [appMode, setAppMode] = useState('decorator') // 'decorator'
   // ===== AI SCANNER STATE (top-level to persist) =====
   const [scanImage, setScanImage] = useState(null)
   const [scanName, setScanName] = useState('')
