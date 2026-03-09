@@ -1,3 +1,38 @@
+// ============================================================
+// FatafatDecor API - Decorator App Route Handler
+// ============================================================
+//
+// TABLE OF CONTENTS:
+//   1.  SETUP & HELPERS         - DB connection, CORS, utilities
+//   2.  AUTH EMAIL              - POST /auth/register, POST /auth/login
+//   3.  AUTH GOOGLE             - POST /auth/google
+//   4.  CITIES MANAGEMENT       - GET/POST /cities, PUT/DELETE /cities/:id, POST /city-check
+//   5.  ITEMS                   - GET/POST /items, PUT/DELETE /items/:id
+//   6.  RENT ITEMS              - GET /rent-items
+//   7.  KITS                    - GET/POST /kits, PUT/DELETE /kits/:id
+//                                 GET /kits/match, POST /kits/analyze
+//                                 GET/POST /kits/reference-images, DELETE /kits/reference-images/:id
+//   8.  DESIGNS                 - POST /designs/generate, GET /designs, GET /designs/:id
+//   9.  ORDERS                  - POST /orders, GET /orders, GET /orders/:id
+//  10.  PAYMENTS                - POST /payments/create-order, POST /payments/verify
+//  11.  DELIVERY SLOTS          - GET /delivery/slots, POST /delivery/book
+//                                 POST /delivery/update-location, GET /delivery/track/:id
+//                                 POST /delivery/status
+//  12.  CREDITS                 - GET /credits/:userId
+//  13.  DELIVERY PERSONS        - GET/POST /delivery-persons, PUT /delivery-persons/:id
+//  14.  USER LOCATION           - POST /user/location
+//  15.  IMAGEKIT                - GET /imagekit/reference, POST /imagekit/upload
+//  16.  DECORATOR APP (DP)      - POST /dp/login, GET /dp/dashboard/:id
+//                                 GET /dp/calendar/:id, GET /dp/orders/:id
+//                                 POST /dp/generate-otp, POST /dp/face-scan
+//                                 POST /dp/verify-otp, POST /dp/complete
+//                                 POST /dp/collect-payment, POST /dp/deposit-cash
+//                                 GET /dp/earnings/:id, POST /dp/update-status
+//                                 POST /dp/accept-order, POST /dp/decline-order
+//                                 GET /dp/order-detail/:id
+//  17.  SEED                    - GET/POST /seed
+// ============================================================
+
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
@@ -503,8 +538,10 @@ async function handleRoute(request, { params }) {
       if (!dp) return err('Delivery person not found', 404)
       const todayOrders = await db.collection('orders').find({ delivery_person_id: dpId, 'delivery_slot.date': today }).sort({ 'delivery_slot.hour': 1 }).toArray()
       const allActiveOrders = await db.collection('orders').find({ delivery_person_id: dpId, delivery_status: { $in: ['assigned', 'in_transit', 'decorating'] } }).toArray()
+      // Orders waiting for this decorator to accept (assigned_decorators includes dpId, not yet accepted)
+      const pendingOrders = await db.collection('orders').find({ assigned_decorators: dpId, delivery_person_id: null }).sort({ created_at: -1 }).toArray()
       const { _id, password: _, ...safeDp } = dp
-      return ok({ delivery_person: safeDp, today_orders: todayOrders.map(({ _id, ...o }) => o), active_orders: allActiveOrders.map(({ _id, ...o }) => o), date: today })
+      return ok({ delivery_person: safeDp, today_orders: todayOrders.map(({ _id, ...o }) => o), active_orders: allActiveOrders.map(({ _id, ...o }) => o), pending_orders: pendingOrders.map(({ _id, ...o }) => o), date: today })
     }
     if (path[0] === 'dp' && path[1] === 'calendar' && path[2] && method === 'GET') {
       const dpId = path[2]; const url = new URL(request.url); const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7)
@@ -585,6 +622,28 @@ async function handleRoute(request, { params }) {
       if (notes) update.dp_notes = notes
       await db.collection('orders').updateOne({ id: order_id }, { $set: update })
       return ok({ success: true })
+    }
+    if (path[0] === 'dp' && path[1] === 'accept-order' && method === 'POST') {
+      const { order_id, dp_id } = await request.json()
+      if (!order_id || !dp_id) return err('order_id, dp_id required')
+      const order = await db.collection('orders').findOne({ id: order_id })
+      if (!order) return err('Order not found', 404)
+      if (order.delivery_person_id) return err('This order was already accepted by another decorator', 409)
+      const dp = await db.collection('delivery_persons').findOne({ id: dp_id })
+      if (!dp) return err('Decorator not found', 404)
+      await db.collection('orders').updateOne({ id: order_id }, { $set: { delivery_person_id: dp_id, delivery_status: 'assigned', accepted_by: { id: dp_id, name: dp.name }, accepted_at: new Date() } })
+      return ok({ success: true, message: 'Order accepted!' })
+    }
+    if (path[0] === 'dp' && path[1] === 'decline-order' && method === 'POST') {
+      const { order_id, dp_id } = await request.json()
+      if (!order_id || !dp_id) return err('order_id, dp_id required')
+      await db.collection('orders').updateOne({ id: order_id }, { $pull: { assigned_decorators: dp_id } })
+      // If no decorators remain, set back to pending
+      const updated = await db.collection('orders').findOne({ id: order_id })
+      if (!updated?.delivery_person_id && (!updated?.assigned_decorators || updated.assigned_decorators.length === 0)) {
+        await db.collection('orders').updateOne({ id: order_id }, { $set: { delivery_status: 'pending' } })
+      }
+      return ok({ success: true, message: 'Order declined' })
     }
     if (path[0] === 'dp' && path[1] === 'order-detail' && path[2] && method === 'GET') {
       const order = await db.collection('orders').findOne({ id: path[2] })
