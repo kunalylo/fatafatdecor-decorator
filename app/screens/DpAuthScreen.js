@@ -18,8 +18,8 @@ export default function DpAuthScreen() {
 
         {/* Hero */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-6">
-          <div className="w-24 h-24 gradient-pink rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-pink">
-            <Truck className="w-12 h-12 text-white" />
+          <div className="w-28 h-28 rounded-full overflow-hidden mx-auto mb-4 shadow-xl">
+            <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-extrabold text-gradient-pink mb-2 text-center">FatafatDecor</h1>
           <p className="text-gray-500 text-sm text-center mb-1">Decorator Partner App</p>
@@ -86,8 +86,8 @@ export default function DpAuthScreen() {
 
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="w-16 h-16 gradient-pink rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-pink">
-            <Truck className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 shadow-xl">
+            <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-extrabold text-gradient-pink mb-1">Welcome Back</h1>
           <p className="text-gray-400 text-sm">Sign in to your decorator account</p>

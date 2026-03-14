@@ -27,9 +27,14 @@ export default function DpHomeScreen() {
     <div className="slide-up pb-24 bg-white min-h-screen">
       <div className="gradient-pink p-6 pb-10 rounded-b-3xl">
         <div className="flex justify-between items-center">
-          <div>
-            <p className="text-white/70 text-xs">Decorator</p>
-            <h1 className="text-white text-xl font-bold">{dpUser?.name}</h1>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+              <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="text-white/70 text-xs">Decorator Partner</p>
+              <h1 className="text-white text-xl font-bold">{dpUser?.name}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge className="bg-white/20 text-white border-0">

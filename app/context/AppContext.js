@@ -167,10 +167,13 @@ export function AppProvider({ children }) {
     try {
       const data = await api('dp/accept-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
       if (data.error) { showToast(data.error, 'error'); return }
-      showToast('Order accepted! Check Today\'s Schedule.', 'success')
+      showToast('Order accepted!', 'success')
       setPendingOrders(prev => prev.filter(o => o.id !== orderId))
       refreshDashboard(dpUser.id)
       api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
+      // Navigate to order detail immediately
+      const detail = await api(`dp/order-detail/${orderId}`)
+      if (!detail.error) { setDpSelectedOrder(detail); navigate(SCREENS.DP_ORDER) }
     } catch (e) { showToast('Failed to accept order', 'error') }
     finally { setLoading(false) }
   }
