@@ -42,6 +42,26 @@ export function AppProvider({ children }) {
     else setScreen(SCREENS.DP_HOME)
   }, [prevScreen])
 
+  // ── Persist session to localStorage ──
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fd_dp_user')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setDpUser(parsed)
+        setScreen(SCREENS.DP_HOME)
+      }
+    } catch (e) { localStorage.removeItem('fd_dp_user') }
+  }, [])
+
+  useEffect(() => {
+    if (dpUser) {
+      try { localStorage.setItem('fd_dp_user', JSON.stringify(dpUser)) } catch (e) {}
+    } else {
+      localStorage.removeItem('fd_dp_user')
+    }
+  }, [dpUser])
+
   // ===== DECORATOR APP - DATA LOADING =====
   const refreshDashboard = useCallback((uid) => {
     api(`dp/dashboard/${uid}`).then(d => {
@@ -112,6 +132,16 @@ export function AppProvider({ children }) {
       navigate(SCREENS.DP_HOME)
     } catch (e) { showToast('Login failed', 'error') }
     finally { setLoading(false) }
+  }
+
+  const handleDpLogout = () => {
+    setDpUser(null)
+    setDpDashboard(null)
+    setDpOrders([])
+    setDpSelectedOrder(null)
+    setPendingOrders([])
+    setScreen(SCREENS.DP_AUTH)
+    showToast('Logged out', 'success')
   }
 
   const startFaceScan = async () => {
@@ -207,7 +237,7 @@ export function AppProvider({ children }) {
     pendingOrders, setPendingOrders,
     dpVideoRef, dpTimerRef,
     showToast, navigate, goBack,
-    handleDpLogin, startFaceScan, captureFace, submitFaceScan,
+    handleDpLogin, handleDpLogout, startFaceScan, captureFace, submitFaceScan,
     verifyOtp, handleAcceptOrder, handleDeclineOrder,
     refreshDashboard, formatTimer
   }
