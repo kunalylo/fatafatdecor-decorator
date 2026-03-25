@@ -8,7 +8,7 @@ import { SCREENS, api } from '../lib/constants'
 
 export default function DpActiveJobScreen() {
   const {
-    dpSelectedOrder, setDpSelectedOrder, dpTimerSeconds, setDpActiveTimer,
+    dpUser, dpSelectedOrder, setDpSelectedOrder, dpTimerSeconds, setDpActiveTimer,
     setDpTimerSeconds, dpTimerRef, navigate, showToast, formatTimer
   } = useApp()
   const o = dpSelectedOrder
@@ -45,9 +45,10 @@ export default function DpActiveJobScreen() {
 
         <Button onClick={async () => {
           if (!o) return
-          await api('dp/complete', { method: 'POST', body: { order_id: o.id } })
+          await api('dp/complete', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id } })
           setDpActiveTimer(null); setDpTimerSeconds(0)
           if (dpTimerRef.current) clearInterval(dpTimerRef.current)
+          try { localStorage.removeItem('fd_dp_timer') } catch {}
           setDpSelectedOrder(prev => prev ? ({ ...prev, delivery_status: 'delivered' }) : prev)
           showToast('Job completed!', 'success')
           navigate(SCREENS.DP_ORDER)
