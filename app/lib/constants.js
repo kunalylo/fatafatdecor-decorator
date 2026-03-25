@@ -1,7 +1,7 @@
 'use client'
 
 const IK = 'https://ik.imagekit.io/jcp2urr7b'
-export const LOGO_URL  = `${IK}/branding/logo.png`
+export const LOGO_URL  = '/logo.png'
 export const ICON_URL  = `${IK}/branding/icon-512.png`
 
 export const SCREENS = {
