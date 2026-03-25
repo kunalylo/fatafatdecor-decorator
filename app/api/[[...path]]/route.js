@@ -536,10 +536,23 @@ async function handleRoute(request, { params }) {
       const dpId = path[2]; const today = new Date().toISOString().split('T')[0]
       const dp = await db.collection('delivery_persons').findOne({ id: dpId })
       if (!dp) return err('Delivery person not found', 404)
-      const todayOrders = await db.collection('orders').find({ delivery_person_id: dpId, 'delivery_slot.date': today }).sort({ 'delivery_slot.hour': 1 }).toArray()
-      const allActiveOrders = await db.collection('orders').find({ delivery_person_id: dpId, delivery_status: { $in: ['assigned', 'in_transit', 'decorating'] } }).toArray()
-      // Orders waiting for this decorator to accept (assigned_decorators includes dpId, not yet accepted)
-      const pendingOrders = await db.collection('orders').find({ assigned_decorators: dpId, delivery_person_id: null }).sort({ created_at: -1 }).toArray()
+      // Today's orders: this decorator is one of the 2 accepted decorators
+      const todayOrders = await db.collection('orders').find({
+        $or: [{ accepted_decorators: dpId }, { delivery_person_id: dpId }],
+        'delivery_slot.date': today
+      }).sort({ 'delivery_slot.hour': 1 }).toArray()
+      // Active jobs: accepted and currently in progress
+      const allActiveOrders = await db.collection('orders').find({
+        $or: [{ accepted_decorators: dpId }, { delivery_person_id: dpId }],
+        delivery_status: { $in: ['assigned', 'en_route', 'arrived', 'decorating'] }
+      }).toArray()
+      // Pending requests: this decorator is in assigned_decorators but has NOT yet accepted (not in accepted_decorators)
+      // and fewer than 2 decorators have accepted
+      const pendingOrders = await db.collection('orders').find({
+        assigned_decorators: dpId,
+        accepted_decorators: { $not: { $elemMatch: { $eq: dpId } } },
+        $expr: { $lt: [{ $size: { $ifNull: ['$accepted_decorators', []] } }, 2] }
+      }).sort({ created_at: -1 }).toArray()
       const { _id, password: _, ...safeDp } = dp
       return ok({ delivery_person: safeDp, today_orders: todayOrders.map(({ _id, ...o }) => o), active_orders: allActiveOrders.map(({ _id, ...o }) => o), pending_orders: pendingOrders.map(({ _id, ...o }) => o), date: today })
     }
@@ -547,12 +560,16 @@ async function handleRoute(request, { params }) {
       const dpId = path[2]; const url = new URL(request.url); const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7)
       const dp = await db.collection('delivery_persons').findOne({ id: dpId })
       if (!dp) return err('Delivery person not found', 404)
-      const orders = await db.collection('orders').find({ delivery_person_id: dpId, 'delivery_slot.date': { $regex: `^${month}` } }).sort({ 'delivery_slot.date': 1, 'delivery_slot.hour': 1 }).toArray()
+      const orders = await db.collection('orders').find({
+        $or: [{ accepted_decorators: dpId }, { delivery_person_id: dpId }],
+        'delivery_slot.date': { $regex: `^${month}` }
+      }).sort({ 'delivery_slot.date': 1, 'delivery_slot.hour': 1 }).toArray()
       return ok({ month, schedule: dp.schedule || {}, orders: orders.map(({ _id, ...o }) => o) })
     }
     if (path[0] === 'dp' && path[1] === 'orders' && path[2] && method === 'GET') {
       const dpId = path[2]; const url = new URL(request.url); const status = url.searchParams.get('status')
-      const query = { delivery_person_id: dpId }; if (status) query.delivery_status = status
+      const query = { $or: [{ accepted_decorators: dpId }, { delivery_person_id: dpId }] }
+      if (status) query.delivery_status = status
       const orders = await db.collection('orders').find(query).sort({ created_at: -1 }).toArray()
       return ok(orders.map(({ _id, ...o }) => o))
     }
@@ -628,17 +645,36 @@ async function handleRoute(request, { params }) {
       if (!order_id || !dp_id) return err('order_id, dp_id required')
       const order = await db.collection('orders').findOne({ id: order_id })
       if (!order) return err('Order not found', 404)
-      if (order.delivery_person_id) return err('This order was already accepted by another decorator', 409)
+      const accepted = order.accepted_decorators || []
+      // Already accepted by this decorator
+      if (accepted.includes(dp_id)) return err('You have already accepted this order', 409)
+      // Both slots filled — 2 decorators already accepted
+      if (accepted.length >= 2) return err('This order already has 2 decorators assigned', 409)
       const dp = await db.collection('delivery_persons').findOne({ id: dp_id })
       if (!dp) return err('Decorator not found', 404)
-      await db.collection('orders').updateOne({ id: order_id }, { $set: { delivery_person_id: dp_id, delivery_status: 'assigned', accepted_by: { id: dp_id, name: dp.name }, accepted_at: new Date() } })
-      return ok({ success: true, message: 'Order accepted!' })
+      const isSecond = accepted.length === 1
+      const updateFields = { accepted_at: new Date() }
+      // First acceptor becomes the lead decorator for location tracking
+      if (accepted.length === 0) updateFields.delivery_person_id = dp_id
+      // When 2nd decorator accepts → order is fully assigned
+      if (isSecond) updateFields.delivery_status = 'assigned'
+      await db.collection('orders').updateOne(
+        { id: order_id },
+        { $push: { accepted_decorators: dp_id }, $set: updateFields }
+      )
+      const msg = isSecond
+        ? 'Order accepted! Both decorators assigned. Job is confirmed.'
+        : 'Order accepted! Waiting for a second decorator to join.'
+      return ok({ success: true, message: msg, is_second: isSecond })
     }
     if (path[0] === 'dp' && path[1] === 'decline-order' && method === 'POST') {
       const { order_id, dp_id } = await request.json()
       if (!order_id || !dp_id) return err('order_id, dp_id required')
-      await db.collection('orders').updateOne({ id: order_id }, { $pull: { assigned_decorators: dp_id } })
-      // If no decorators remain, set back to pending
+      // Remove from both assigned and accepted arrays
+      await db.collection('orders').updateOne({ id: order_id }, {
+        $pull: { assigned_decorators: dp_id, accepted_decorators: dp_id }
+      })
+      // If no decorators remain at all, set back to pending
       const updated = await db.collection('orders').findOne({ id: order_id })
       if (!updated?.delivery_person_id && (!updated?.assigned_decorators || updated.assigned_decorators.length === 0)) {
         await db.collection('orders').updateOne({ id: order_id }, { $set: { delivery_status: 'pending' } })

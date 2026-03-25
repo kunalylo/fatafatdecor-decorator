@@ -197,7 +197,7 @@ export function AppProvider({ children }) {
     try {
       const data = await api('dp/accept-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
       if (data.error) { showToast(data.error, 'error'); return }
-      showToast('Order accepted!', 'success')
+      showToast(data.message || 'Order accepted!', 'success')
       setPendingOrders(prev => prev.filter(o => o.id !== orderId))
       refreshDashboard(dpUser.id)
       api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })

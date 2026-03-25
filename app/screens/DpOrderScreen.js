@@ -43,7 +43,7 @@ export default function DpOrderScreen() {
         )}
 
         {o.decorated_image && (
-          <img src={`data:image/png;base64,${o.decorated_image}`} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
+          <img src={o.decorated_image} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
         )}
         <Card className="border border-gray-100">
           <CardContent className="p-4 space-y-2">
