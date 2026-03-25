@@ -52,6 +52,20 @@ export function AppProvider({ children }) {
         setScreen(SCREENS.DP_HOME)
       }
     } catch (e) { localStorage.removeItem('fd_dp_user') }
+    // Restore active timer if decorator had a job in progress
+    try {
+      const timerData = localStorage.getItem('fd_dp_timer')
+      if (timerData) {
+        const { orderId, endTime } = JSON.parse(timerData)
+        const remaining = Math.floor((endTime - Date.now()) / 1000)
+        if (remaining > 0) {
+          setDpActiveTimer(orderId)
+          setDpTimerSeconds(remaining)
+        } else {
+          localStorage.removeItem('fd_dp_timer')
+        }
+      }
+    } catch (e) { localStorage.removeItem('fd_dp_timer') }
   }, [])
 
   useEffect(() => {
@@ -109,8 +123,7 @@ export function AppProvider({ children }) {
         setDpTimerSeconds(prev => {
           if (prev <= 1) {
             clearInterval(dpTimerRef.current)
-            // ALARM - slot time over
-            try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1hZmpvaXB0eH18fX17eXd2dXV2eHp9f4GDhYaIiImIh4WDgX57eHVycW9ub3BydHd6fYCDhomLjI2NjIuJh4WCf3x5dnNxb25ubm9xc3Z5fICDhomMjY+Pj46MioeEgX57eHVycG9ubm5ub3Fzdn').play() } catch(e) {}
+            try { localStorage.removeItem('fd_dp_timer') } catch {}
             showToast('Time is up! Your booked slot has ended.', 'error')
             setDpActiveTimer(null)
             return 0
@@ -180,10 +193,12 @@ export function AppProvider({ children }) {
     if (!otpInput || otpInput.length !== 4) { showToast('Enter 4-digit OTP', 'error'); return }
     setLoading(true)
     try {
-      const data = await api('dp/verify-otp', { method: 'POST', body: { order_id: orderId, otp: otpInput } })
+      const data = await api('dp/verify-otp', { method: 'POST', body: { order_id: orderId, otp: otpInput, dp_id: dpUser?.id } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('OTP Verified! Decoration started.', 'success')
-      // Start 1-hour timer (3600 seconds)
+      // Start 1-hour timer (3600 seconds) and persist end time to localStorage
+      const endTime = Date.now() + 3600 * 1000
+      try { localStorage.setItem('fd_dp_timer', JSON.stringify({ orderId, endTime })) } catch {}
       setDpTimerSeconds(3600)
       setDpActiveTimer(orderId)
       setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'decorating' }))

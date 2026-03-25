@@ -99,7 +99,7 @@ export default function DpOrderScreen() {
         {/* Status Actions */}
         {o.delivery_status === 'assigned' && (
           <Button onClick={async () => {
-            await api('dp/update-status', { method: 'POST', body: { order_id: o.id, status: 'en_route' } })
+            await api('dp/update-status', { method: 'POST', body: { order_id: o.id, status: 'en_route', dp_id: dpUser?.id } })
             await api('dp/generate-otp', { method: 'POST', body: { order_id: o.id } })
             setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'en_route' }))
             showToast('On your way! OTP generated for customer.', 'success')
@@ -121,7 +121,8 @@ export default function DpOrderScreen() {
               <p className="text-xl font-bold text-orange-600">{formatTimer(dpTimerSeconds)}</p>
               <p className="text-xs text-orange-400 mb-3">Decoration in progress</p>
               <Button onClick={async () => {
-                await api('dp/complete', { method: 'POST', body: { order_id: o.id } })
+                await api('dp/complete', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id } })
+                try { localStorage.removeItem('fd_dp_timer') } catch {}
                 setDpActiveTimer(null); setDpTimerSeconds(0)
                 setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'delivered' }))
                 showToast('Job completed!', 'success')

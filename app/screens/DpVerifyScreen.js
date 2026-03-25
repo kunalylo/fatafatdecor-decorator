@@ -15,7 +15,7 @@ export default function DpVerifyScreen() {
   } = useApp()
   const o = dpSelectedOrder
   if (!o) return null
-  useEffect(() => { startFaceScan() }, [])
+  useEffect(() => { startFaceScan() }, [startFaceScan])
   return (
     <div className="slide-up pb-24 bg-white min-h-screen">
       <div className="flex items-center gap-3 p-4">

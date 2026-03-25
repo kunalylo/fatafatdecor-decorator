@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Truck, Loader2, Star, Shield, Zap, ArrowRight, ChevronLeft } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { LOGO_URL } from '../lib/constants'
 
 export default function DpAuthScreen() {
   const { loading, dpAuthForm, setDpAuthForm, handleDpLogin } = useApp()
@@ -19,7 +20,7 @@ export default function DpAuthScreen() {
         {/* Hero */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-6">
           <div className="w-28 h-28 rounded-full overflow-hidden mx-auto mb-4 shadow-xl">
-            <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
+            <img src={LOGO_URL} alt="FatafatDecor" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-extrabold text-gradient-pink mb-2 text-center">FatafatDecor</h1>
           <p className="text-gray-500 text-sm text-center mb-1">Decorator Partner App</p>
@@ -51,7 +52,7 @@ export default function DpAuthScreen() {
         <div className="px-6 pb-10 space-y-3">
           {/* Primary: Get Certified */}
           <Button
-            onClick={() => window.open('https://fatafatdecor.ylo.co.in/apply-decorator', '_blank')}
+            onClick={() => window.open(process.env.NEXT_PUBLIC_APPLY_URL || 'https://fatafatdecor.ylo.co.in/apply-decorator', '_blank')}
             className="w-full h-14 gradient-pink border-0 text-white font-bold text-base rounded-2xl shadow-pink flex items-center justify-center gap-2"
           >
             <Star className="w-5 h-5" />
@@ -87,7 +88,7 @@ export default function DpAuthScreen() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 shadow-xl">
-            <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
+            <img src={LOGO_URL} alt="FatafatDecor" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-extrabold text-gradient-pink mb-1">Welcome Back</h1>
           <p className="text-gray-400 text-sm">Sign in to your decorator account</p>

@@ -8,7 +8,7 @@ import {
   CheckCircle2, Trash2, Clock, ChevronRight, Truck
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { SCREENS, api } from '../lib/constants'
+import { SCREENS, api, LOGO_URL } from '../lib/constants'
 
 export default function DpHomeScreen() {
   const {
@@ -29,7 +29,7 @@ export default function DpHomeScreen() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
-              <img src="/logo.png" alt="FatafatDecor" className="w-full h-full object-cover" />
+              <img src={LOGO_URL} alt="FatafatDecor" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="text-white/70 text-xs">Decorator Partner</p>
