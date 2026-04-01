@@ -8,7 +8,6 @@ import io
 import json as json_lib
 import traceback
 import asyncio
-import requests as http_requests
 
 app = FastAPI()
 
@@ -21,19 +20,11 @@ app.add_middleware(
 
 # ============================================================
 # CREDENTIALS
-# /generate          → fal.ai FLUX models (fast, cheap, high quality)
-# /analyze-decoration → OpenAI gpt-4o-mini vision (analysis only)
+# /generate            → fal.ai FLUX models (image generation)
+# /analyze-decoration  → fal.ai any-llm vision (gemini-flash)
 # ============================================================
 FAL_KEY = os.environ.get("FAL_KEY", "")
 os.environ["FAL_KEY"] = FAL_KEY  # fal_client reads FAL_KEY from env
-
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-
-def get_openai_client():
-    from openai import OpenAI
-    if not OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY env var not set")
-    return OpenAI(api_key=OPENAI_API_KEY)
 
 
 class GenerateRequest(BaseModel):
@@ -52,8 +43,7 @@ async def health():
         "status": "ok",
         "ai_provider": "fal.ai FLUX",
         "fal_key_configured": bool(FAL_KEY),
-        "analysis_provider": "openai gpt-4o-mini",
-        "openai_key_configured": bool(OPENAI_API_KEY)
+        "analysis_provider": "fal.ai any-llm (gemini-flash-1-5)"
     }
 
 
@@ -112,21 +102,19 @@ async def generate_decoration(req: GenerateRequest):
 
 @app.post("/analyze-decoration")
 async def analyze_decoration(req: AnalyzeRequest):
-    """Analyze a decoration photo with GPT-4o-mini vision. Returns item list with INR prices."""
+    """Analyze a decoration photo using fal.ai vision (gemini-flash-1-5). Returns item list with INR prices."""
+    import fal_client
     try:
-        client = get_openai_client()
-
+        # Upload base64 image to fal storage → get URL for vision model
         img_data = req.image_base64
         if ',' in img_data:
             img_data = img_data.split(',', 1)[1]
-        data_url = f"data:image/jpeg;base64,{img_data}"
+        image_bytes = base64.b64decode(img_data)
+        image_file = io.BytesIO(image_bytes)
+        image_file.name = "decoration.jpg"
+        image_url = await asyncio.to_thread(fal_client.upload, image_file, content_type="image/jpeg")
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are an expert event decoration analyst for FatafatDecor India. Count ALL items accurately.
+        system_prompt = """You are an expert event decoration analyst for FatafatDecor India. Count ALL items accurately.
 
 FIRST: Generate a unique creative kit name (e.g., "Rose Gold Birthday Glam Backdrop", "Enchanted Garden Party Setup").
 
@@ -166,27 +154,23 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   "suggested_final_price": 0,
   "notes": "setup tips"
 }"""
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"Analyze this decoration image{(' named: ' + req.name) if req.name else ''}. Count ALL items accurately. Use FatafatDecor Indian market pricing."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": data_url}
-                        }
-                    ]
-                }
-            ],
-            max_tokens=2000
+
+        user_prompt = f"Analyze this decoration image{(' named: ' + req.name) if req.name else ''}. Count ALL items accurately. Use FatafatDecor Indian market pricing."
+
+        result = await asyncio.to_thread(
+            fal_client.run,
+            "fal-ai/any-llm",
+            arguments={
+                "model": "google/gemini-flash-1-5",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "image_url": image_url
+            }
         )
 
-        result_text = response.choices[0].message.content.strip()
+        result_text = result["output"].strip()
 
-        # Strip markdown fences if AI wrapped response in them
+        # Strip markdown fences if model wrapped response in them
         if result_text.startswith("```"):
             lines = result_text.split("\n")
             lines = [l for l in lines if not l.strip().startswith("```")]
