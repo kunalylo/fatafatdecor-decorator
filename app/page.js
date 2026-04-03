@@ -29,7 +29,7 @@ function AppContent() {
       {screen === SCREENS.DP_EARNINGS && <DpEarningsScreen />}
       {screen === SCREENS.DP_PROFILE && <DpProfileScreen />}
       {screen === SCREENS.DP_GIFT_ORDER && <DpGiftOrderScreen />}
-      {dpUser && screen !== SCREENS.DP_AUTH && screen !== SCREENS.DP_VERIFY && screen !== SCREENS.DP_ACTIVE_JOB && <DpBottomNav />}
+      {dpUser && screen !== SCREENS.DP_AUTH && screen !== SCREENS.DP_VERIFY && screen !== SCREENS.DP_ACTIVE_JOB && screen !== SCREENS.DP_GIFT_ORDER && <DpBottomNav />}
     </div>
   )
 }

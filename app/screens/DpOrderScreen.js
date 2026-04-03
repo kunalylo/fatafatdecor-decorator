@@ -160,23 +160,28 @@ export default function DpOrderScreen() {
           <Card className="border border-orange-200 bg-orange-50">
             <CardContent className="p-4">
               <h3 className="font-bold text-sm text-gray-700 mb-2">Collect Remaining Payment</h3>
-              <p className="text-xs text-gray-400 mb-3">Remaining: Rs {Math.round(o.total_cost * 0.5)}</p>
+              {(() => {
+                const remaining = Math.round(o.total_cost - (o.payment_amount || 0))
+                return (<>
+              <p className="text-xs text-gray-400 mb-3">Remaining: Rs {remaining} (50% on delivery)</p>
               <div className="flex gap-2">
                 <Button onClick={async () => {
-                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: Math.round(o.total_cost * 0.5), method: 'cash' } })
+                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: remaining, method: 'cash' } })
                   setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
                   showToast('Cash collected!', 'success')
                 }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl">
                   <Wallet className="w-4 h-4 mr-1" /> Cash
                 </Button>
                 <Button onClick={async () => {
-                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: Math.round(o.total_cost * 0.5), method: 'online' } })
+                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: remaining, method: 'online' } })
                   setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
                   showToast('Online payment recorded!', 'success')
                 }} variant="outline" className="flex-1 border-pink-200 text-pink-500 font-semibold rounded-xl">
                   <CreditCard className="w-4 h-4 mr-1" /> Online
                 </Button>
               </div>
+                </>)
+              })()}
             </CardContent>
           </Card>
         )}
