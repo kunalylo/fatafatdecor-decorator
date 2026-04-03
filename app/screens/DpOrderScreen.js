@@ -96,6 +96,29 @@ export default function DpOrderScreen() {
           </div>
         )}
 
+        {/* Gift Items (when decoration order also has gifts) */}
+        {o.has_gifts && o.gift_items?.length > 0 && (
+          <Card className="mx-0 mb-3 rounded-2xl border-pink-100">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🎁</span>
+                <h3 className="font-bold text-sm text-gray-700">Also Deliver These Gifts</h3>
+                <span className="bg-pink-100 text-pink-600 text-xs font-bold px-2 py-0.5 rounded-full">With Decoration</span>
+              </div>
+              {o.gift_items.map((g, i) => (
+                <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
+                  <span className="text-sm text-gray-700">{g.quantity}× {g.name}</span>
+                  <span className="text-sm font-semibold text-pink-600">₹{(g.price * g.quantity).toLocaleString('en-IN')}</span>
+                </div>
+              ))}
+              <div className="mt-2 pt-2 border-t border-pink-100 flex justify-between">
+                <span className="text-sm font-bold text-gray-700">Gifts Total</span>
+                <span className="text-sm font-bold text-pink-600">₹{o.gift_items.reduce((s, g) => s + g.price * g.quantity, 0).toLocaleString('en-IN')}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Status Actions */}
         {o.delivery_status === 'assigned' && (
           <Button onClick={async () => {

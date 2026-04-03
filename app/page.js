@@ -13,6 +13,7 @@ import DpActiveJobScreen from './screens/DpActiveJobScreen'
 import DpCalendarScreen from './screens/DpCalendarScreen'
 import DpEarningsScreen from './screens/DpEarningsScreen'
 import DpProfileScreen from './screens/DpProfileScreen'
+import DpGiftOrderScreen from './screens/DpGiftOrderScreen'
 
 function AppContent() {
   const { screen, dpUser } = useApp()
@@ -27,6 +28,7 @@ function AppContent() {
       {screen === SCREENS.DP_CALENDAR && <DpCalendarScreen />}
       {screen === SCREENS.DP_EARNINGS && <DpEarningsScreen />}
       {screen === SCREENS.DP_PROFILE && <DpProfileScreen />}
+      {screen === SCREENS.DP_GIFT_ORDER && <DpGiftOrderScreen />}
       {dpUser && screen !== SCREENS.DP_AUTH && screen !== SCREENS.DP_VERIFY && screen !== SCREENS.DP_ACTIVE_JOB && <DpBottomNav />}
     </div>
   )

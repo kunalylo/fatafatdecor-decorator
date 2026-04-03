@@ -7,7 +7,7 @@ export const ICON_URL  = `${IK}/branding/icon-512.png`
 export const SCREENS = {
   DP_AUTH: 'dp_auth', DP_HOME: 'dp_home', DP_ORDER: 'dp_order',
   DP_CALENDAR: 'dp_calendar', DP_EARNINGS: 'dp_earnings', DP_PROFILE: 'dp_profile',
-  DP_VERIFY: 'dp_verify', DP_ACTIVE_JOB: 'dp_active_job'
+  DP_VERIFY: 'dp_verify', DP_ACTIVE_JOB: 'dp_active_job', DP_GIFT_ORDER: 'dp_gift_order'
 }
 
 export const ROOM_TYPES = ['Dining Room', 'Living Room', 'Bedroom', 'Balcony', 'Garden', 'Hall', 'Office', 'Terrace']

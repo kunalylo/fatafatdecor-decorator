@@ -13,8 +13,8 @@ import { SCREENS, api, LOGO_URL } from '../lib/constants'
 export default function DpHomeScreen() {
   const {
     dpUser, dpDashboard, dpOrders, setDpOrders, dpActiveTimer, dpTimerSeconds,
-    pendingOrders, loading, navigate, refreshDashboard, handleAcceptOrder,
-    handleDeclineOrder, formatTimer, setDpSelectedOrder
+    pendingOrders, pendingGiftOrders, loading, navigate, refreshDashboard, handleAcceptOrder,
+    handleDeclineOrder, handleAcceptGiftOrder, handleDeclineGiftOrder, formatTimer, setDpSelectedOrder
   } = useApp()
   const today = dpDashboard?.date || new Date().toISOString().split('T')[0]
   const todayOrders = dpDashboard?.today_orders || []
@@ -121,6 +121,45 @@ export default function DpHomeScreen() {
                 </div>
               </CardContent>
             </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Gift Order Requests */}
+      {pendingGiftOrders?.length > 0 && (
+        <div className="mx-4 mb-4 mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🎁</span>
+            <h2 className="font-bold text-gray-800">Gift Delivery Requests</h2>
+            <span className="bg-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingGiftOrders.length}</span>
+          </div>
+          {pendingGiftOrders.map(o => (
+            <div key={o.id} className="bg-white rounded-2xl border border-pink-100 p-4 mb-3 shadow-sm">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="font-bold text-sm text-gray-800">🎁 Gift Delivery</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{o.gift_items?.length} item{o.gift_items?.length !== 1 ? 's' : ''} · ₹{o.gift_total?.toLocaleString('en-IN')}</p>
+                </div>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg">100% Paid</span>
+              </div>
+              <div className="mb-3">
+                {o.gift_items?.slice(0, 2).map((g, i) => (
+                  <p key={i} className="text-xs text-gray-600">{g.quantity}× {g.name}</p>
+                ))}
+                {(o.gift_items?.length || 0) > 2 && <p className="text-xs text-gray-400">+{o.gift_items.length - 2} more</p>}
+              </div>
+              <p className="text-xs text-gray-400 mb-3">📍 {o.delivery_address}</p>
+              <div className="flex gap-2">
+                <button onClick={() => handleDeclineGiftOrder(o.id)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold">
+                  Decline
+                </button>
+                <button onClick={() => handleAcceptGiftOrder(o.id)}
+                  className="flex-2 flex-1 py-2.5 rounded-xl bg-pink-500 text-white text-sm font-bold">
+                  Accept 🎁
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}

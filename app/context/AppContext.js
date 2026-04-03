@@ -16,6 +16,8 @@ export function AppProvider({ children }) {
   const [dpOrders, setDpOrders] = useState([])
   const [dpSelectedOrder, setDpSelectedOrder] = useState(null)
   const [pendingOrders, setPendingOrders] = useState([])
+  const [pendingGiftOrders, setPendingGiftOrders] = useState([])
+  const [dpSelectedGiftOrder, setDpSelectedGiftOrder] = useState(null)
   const [dpEarnings, setDpEarnings] = useState(null)
   const [dpCalendarData, setDpCalendarData] = useState(null)
   const [calMonth, setCalMonth] = useState(new Date().toISOString().slice(0, 7))
@@ -82,6 +84,7 @@ export function AppProvider({ children }) {
       if (!d.error) {
         setDpDashboard(d)
         setPendingOrders(d.pending_orders || [])
+        if (d.pending_gift_orders) setPendingGiftOrders(d.pending_gift_orders)
       }
     })
   }, [])
@@ -234,6 +237,41 @@ export function AppProvider({ children }) {
     finally { setLoading(false) }
   }
 
+  const handleAcceptGiftOrder = async (orderId) => {
+    setLoading(true)
+    try {
+      const data = await api('dp/accept-gift-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      if (data.error) { showToast(data.error, 'error'); return }
+      showToast('Gift order accepted!', 'success')
+      setPendingGiftOrders(prev => prev.filter(o => o.id !== orderId))
+      const detail = await api(`dp/gift-order-detail/${orderId}`)
+      if (!detail.error) { setDpSelectedGiftOrder(detail); navigate(SCREENS.DP_GIFT_ORDER) }
+    } catch { showToast('Failed to accept', 'error') }
+    finally { setLoading(false) }
+  }
+
+  const handleDeclineGiftOrder = async (orderId) => {
+    setLoading(true)
+    try {
+      const data = await api('dp/decline-gift-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      if (data.error) { showToast(data.error, 'error'); return }
+      showToast('Gift order declined', 'info')
+      setPendingGiftOrders(prev => prev.filter(o => o.id !== orderId))
+    } catch { showToast('Failed to decline', 'error') }
+    finally { setLoading(false) }
+  }
+
+  const handleUpdateGiftStatus = async (orderId, status) => {
+    setLoading(true)
+    try {
+      const data = await api('dp/update-gift-status', { method: 'POST', body: { order_id: orderId, status, dp_id: dpUser?.id } })
+      if (data.error) { showToast(data.error, 'error'); return }
+      setDpSelectedGiftOrder(prev => ({ ...prev, delivery_status: status }))
+      showToast(`Status updated: ${status}`, 'success')
+    } catch { showToast('Update failed', 'error') }
+    finally { setLoading(false) }
+  }
+
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60)
     const s = secs % 60
@@ -250,10 +288,13 @@ export function AppProvider({ children }) {
     dpActiveTimer, setDpActiveTimer, dpTimerSeconds, setDpTimerSeconds,
     faceScanImage, setFaceScanImage, otpInput, setOtpInput,
     pendingOrders, setPendingOrders,
+    pendingGiftOrders, setPendingGiftOrders,
+    dpSelectedGiftOrder, setDpSelectedGiftOrder,
     dpVideoRef, dpTimerRef,
     showToast, navigate, goBack,
     handleDpLogin, handleDpLogout, startFaceScan, captureFace, submitFaceScan,
     verifyOtp, handleAcceptOrder, handleDeclineOrder,
+    handleAcceptGiftOrder, handleDeclineGiftOrder, handleUpdateGiftStatus,
     refreshDashboard, formatTimer
   }
 
