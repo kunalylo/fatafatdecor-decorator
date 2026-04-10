@@ -48,12 +48,21 @@ export function AppProvider({ children }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fd_dp_user')
-      if (saved) {
+      const token = localStorage.getItem('dp_token')
+      // Require BOTH user object + JWT to restore a session. If either is
+      // missing (e.g. upgraded from a pre-JWT build), force re-login.
+      if (saved && token) {
         const parsed = JSON.parse(saved)
         setDpUser(parsed)
         setScreen(SCREENS.DP_HOME)
+      } else {
+        localStorage.removeItem('fd_dp_user')
+        localStorage.removeItem('dp_token')
       }
-    } catch (e) { localStorage.removeItem('fd_dp_user') }
+    } catch (e) {
+      localStorage.removeItem('fd_dp_user')
+      localStorage.removeItem('dp_token')
+    }
     // Restore active timer if decorator had a job in progress
     try {
       const timerData = localStorage.getItem('fd_dp_timer')
@@ -90,27 +99,45 @@ export function AppProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (dpUser) {
-      refreshDashboard(dpUser.id)
-      api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
-      api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })
-      // Poll for new incoming orders every 15s
-      const orderPoll = setInterval(() => refreshDashboard(dpUser.id), 15000)
-      // Auto update GPS
-      if (navigator.geolocation) {
-        const gpsInterval = setInterval(() => {
-          navigator.geolocation.getCurrentPosition(pos => {
-            api('delivery/update-location', { method: 'POST', body: { delivery_person_id: dpUser.id, lat: pos.coords.latitude, lng: pos.coords.longitude } })
-          }, () => {}, { enableHighAccuracy: true })
-        }, 10000)
-        navigator.geolocation.getCurrentPosition(pos => {
-          api('delivery/update-location', { method: 'POST', body: { delivery_person_id: dpUser.id, lat: pos.coords.latitude, lng: pos.coords.longitude } })
-        })
-        return () => { clearInterval(gpsInterval); clearInterval(orderPoll) }
-      }
-      return () => clearInterval(orderPoll)
+    if (!dpUser) return
+    refreshDashboard(dpUser.id)
+    api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
+    api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })
+    // Poll for new incoming orders every 15s
+    const orderPoll = setInterval(() => refreshDashboard(dpUser.id), 15000)
+    return () => clearInterval(orderPoll)
+  }, [dpUser?.id, refreshDashboard])
+
+  // GPS: only track location while there is an active order in en_route/
+  // arrived/decorating status. When idle, we don't burn battery or hit the
+  // API. Uses watchPosition so we don't spawn overlapping timers.
+  useEffect(() => {
+    if (!dpUser || typeof navigator === 'undefined' || !navigator.geolocation) return
+    const activeOrders = (dpDashboard?.active_orders || [])
+      .filter(o => ['en_route', 'arrived', 'decorating'].includes(o.delivery_status))
+    if (activeOrders.length === 0) return
+
+    let cancelled = false
+    const push = (pos) => {
+      if (cancelled) return
+      api('delivery/update-location', {
+        method: 'POST',
+        body: { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      }).catch(() => {})
     }
-  }, [dpUser?.id])
+    // Immediate fix
+    navigator.geolocation.getCurrentPosition(push, () => {}, { enableHighAccuracy: true })
+    // Continuous updates — fires only when the device actually moves
+    const watchId = navigator.geolocation.watchPosition(push, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    })
+    return () => {
+      cancelled = true
+      try { navigator.geolocation.clearWatch(watchId) } catch {}
+    }
+  }, [dpUser?.id, dpDashboard?.active_orders])
 
   // Fetch calendar data when month or user changes (must be top-level to avoid infinite re-render)
   useEffect(() => {
@@ -143,24 +170,58 @@ export function AppProvider({ children }) {
     try {
       const data = await api('dp/login', { method: 'POST', body: dpAuthForm })
       if (data.error) { showToast(data.error, 'error'); return }
-      setDpUser(data)
-      showToast(`Welcome, ${data.name}!`, 'success')
+      // Save JWT so the `api()` helper sends it in the Authorization header
+      if (data.token) {
+        try { localStorage.setItem('dp_token', data.token) } catch {}
+      }
+      // Strip token out of the persisted user object — no need to store twice
+      const { token, ...userOnly } = data
+      setDpUser(userOnly)
+      showToast(`Welcome, ${userOnly.name}!`, 'success')
       navigate(SCREENS.DP_HOME)
     } catch (e) { showToast('Login failed', 'error') }
     finally { setLoading(false) }
   }
 
-  const handleDpLogout = () => {
+  const wipeSession = useCallback(() => {
+    try {
+      localStorage.removeItem('dp_token')
+      localStorage.removeItem('fd_dp_user')
+      localStorage.removeItem('fd_dp_timer')
+    } catch {}
     setDpUser(null)
     setDpDashboard(null)
     setDpOrders([])
     setDpSelectedOrder(null)
     setPendingOrders([])
+    setPendingGiftOrders([])
+    setDpSelectedGiftOrder(null)
+    setDpEarnings(null)
+    setDpCalendarData(null)
+    setDpActiveTimer(null)
+    setDpTimerSeconds(0)
+    setFaceScanImage(null)
+    setOtpInput('')
+    setDpAuthForm({ phone: '', password: '' })
     setScreen(SCREENS.DP_AUTH)
+  }, [])
+
+  const handleDpLogout = () => {
+    wipeSession()
     showToast('Logged out', 'success')
   }
 
-  const startFaceScan = async () => {
+  // Listen for 401-driven forced logouts from the api() helper.
+  useEffect(() => {
+    const onAuthExpired = () => {
+      wipeSession()
+      showToast('Session expired. Please log in again.', 'error')
+    }
+    window.addEventListener('dp:auth-expired', onAuthExpired)
+    return () => window.removeEventListener('dp:auth-expired', onAuthExpired)
+  }, [wipeSession, showToast])
+
+  const startSelfieCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
       if (dpVideoRef.current) {
@@ -170,35 +231,56 @@ export function AppProvider({ children }) {
     } catch (e) { showToast('Camera access denied', 'error') }
   }
 
-  const captureFace = () => {
+  const captureSelfie = () => {
     if (!dpVideoRef.current) return
     const canvas = document.createElement('canvas')
-    canvas.width = 320; canvas.height = 240
-    canvas.getContext('2d').drawImage(dpVideoRef.current, 0, 0, 320, 240)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+    canvas.width = 480; canvas.height = 360
+    canvas.getContext('2d').drawImage(dpVideoRef.current, 0, 0, 480, 360)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
     setFaceScanImage(dataUrl)
     const stream = dpVideoRef.current.srcObject
     if (stream) stream.getTracks().forEach(t => t.stop())
   }
 
-  const submitFaceScan = async (orderId) => {
-    if (!faceScanImage) { showToast('Please capture your face first', 'error'); return }
+  const submitSelfieProof = async (orderId) => {
+    if (!faceScanImage) { showToast('Please capture a selfie first', 'error'); return }
     setLoading(true)
     try {
-      const data = await api('dp/face-scan', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id, face_image: faceScanImage } })
+      // Attach GPS coords if available — gives the backend a "was at site" audit
+      let lat, lng
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          )
+          lat = pos.coords.latitude; lng = pos.coords.longitude
+        } catch {}
+      }
+      const data = await api('dp/selfie-proof', {
+        method: 'POST',
+        body: { order_id: orderId, selfie_image: faceScanImage, lat, lng }
+      })
       if (data.error) { showToast(data.error, 'error'); return }
-      showToast('Face verified! Now enter customer OTP.', 'success')
-    } catch (e) { showToast('Face scan failed', 'error') }
+      showToast('Selfie proof uploaded. Now enter customer OTP.', 'success')
+    } catch (e) { showToast('Upload failed', 'error') }
     finally { setLoading(false) }
   }
 
+  // Legacy aliases for any components still importing the old names
+  const startFaceScan = startSelfieCamera
+  const captureFace = captureSelfie
+  const submitFaceScan = submitSelfieProof
+
   const verifyOtp = async (orderId) => {
-    if (!otpInput || otpInput.length !== 4) { showToast('Enter 4-digit OTP', 'error'); return }
+    // Accept 4- or 6-digit OTP (backend now issues 6-digit but old orders may still have 4)
+    if (!otpInput || (otpInput.length !== 4 && otpInput.length !== 6)) {
+      showToast('Enter 4- or 6-digit OTP', 'error'); return
+    }
     setLoading(true)
     try {
-      const data = await api('dp/verify-otp', { method: 'POST', body: { order_id: orderId, otp: otpInput, dp_id: dpUser?.id } })
+      const data = await api('dp/verify-otp', { method: 'POST', body: { order_id: orderId, otp: otpInput } })
       if (data.error) { showToast(data.error, 'error'); return }
-      showToast('OTP Verified! Decoration started.', 'success')
+      showToast('OTP verified. Decoration started.', 'success')
       // Start 1-hour timer (3600 seconds) and persist end time to localStorage
       const endTime = Date.now() + 3600 * 1000
       try { localStorage.setItem('fd_dp_timer', JSON.stringify({ orderId, endTime })) } catch {}
@@ -213,7 +295,7 @@ export function AppProvider({ children }) {
   const handleAcceptOrder = async (orderId) => {
     setLoading(true)
     try {
-      const data = await api('dp/accept-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      const data = await api('dp/accept-order', { method: 'POST', body: { order_id: orderId } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast(data.message || 'Order accepted!', 'success')
       setPendingOrders(prev => prev.filter(o => o.id !== orderId))
@@ -229,7 +311,7 @@ export function AppProvider({ children }) {
   const handleDeclineOrder = async (orderId) => {
     setLoading(true)
     try {
-      const data = await api('dp/decline-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      const data = await api('dp/decline-order', { method: 'POST', body: { order_id: orderId } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('Order declined.', 'info')
       setPendingOrders(prev => prev.filter(o => o.id !== orderId))
@@ -240,7 +322,7 @@ export function AppProvider({ children }) {
   const handleAcceptGiftOrder = async (orderId) => {
     setLoading(true)
     try {
-      const data = await api('dp/accept-gift-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      const data = await api('dp/accept-gift-order', { method: 'POST', body: { order_id: orderId } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('Gift order accepted!', 'success')
       setPendingGiftOrders(prev => prev.filter(o => o.id !== orderId))
@@ -253,7 +335,7 @@ export function AppProvider({ children }) {
   const handleDeclineGiftOrder = async (orderId) => {
     setLoading(true)
     try {
-      const data = await api('dp/decline-gift-order', { method: 'POST', body: { order_id: orderId, dp_id: dpUser.id } })
+      const data = await api('dp/decline-gift-order', { method: 'POST', body: { order_id: orderId } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('Gift order declined', 'info')
       setPendingGiftOrders(prev => prev.filter(o => o.id !== orderId))
@@ -264,7 +346,7 @@ export function AppProvider({ children }) {
   const handleUpdateGiftStatus = async (orderId, status) => {
     setLoading(true)
     try {
-      const data = await api('dp/update-gift-status', { method: 'POST', body: { order_id: orderId, status, dp_id: dpUser?.id } })
+      const data = await api('dp/update-gift-status', { method: 'POST', body: { order_id: orderId, status } })
       if (data.error) { showToast(data.error, 'error'); return }
       setDpSelectedGiftOrder(prev => ({ ...prev, delivery_status: status }))
       showToast(`Status updated: ${status}`, 'success')
@@ -292,7 +374,11 @@ export function AppProvider({ children }) {
     dpSelectedGiftOrder, setDpSelectedGiftOrder,
     dpVideoRef, dpTimerRef,
     showToast, navigate, goBack,
-    handleDpLogin, handleDpLogout, startFaceScan, captureFace, submitFaceScan,
+    handleDpLogin, handleDpLogout,
+    // New names
+    startSelfieCamera, captureSelfie, submitSelfieProof,
+    // Legacy aliases (still exported so old screens don't break)
+    startFaceScan, captureFace, submitFaceScan,
     verifyOtp, handleAcceptOrder, handleDeclineOrder,
     handleAcceptGiftOrder, handleDeclineGiftOrder, handleUpdateGiftStatus,
     refreshDashboard, formatTimer

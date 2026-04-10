@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'FatafatDecor - Instant Decoration Delivery',
-  description: 'AI-powered decoration suggestions delivered to your doorstep. fatafatdecor.com',
+  title: 'FatafatDecor — Decorator Partner',
+  description: 'Manage decoration orders, navigate to customers, and track earnings. FatafatDecor Decorator App.',
   manifest: '/manifest.json',
 }
 

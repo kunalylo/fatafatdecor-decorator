@@ -1,22 +1,31 @@
 'use client'
 import { useApp } from '../context/AppContext'
 import { SCREENS } from '../lib/constants'
-import { ArrowLeft, MapPin, Phone, Package, CheckCircle } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Package, CheckCircle, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 const STATUS_STEPS = ['assigned', 'en_route', 'arrived', 'delivered']
 const STATUS_LABELS = { assigned: 'Assigned', en_route: 'En Route', arrived: 'Arrived', delivered: 'Delivered' }
 
+function buildGiftMapsUrl(o) {
+  if (o?.delivery_lat && o?.delivery_lng) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`
+  }
+  const addr = [o?.delivery_address, o?.delivery_landmark].filter(Boolean).join(', ')
+  if (addr) return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`
+  return 'https://www.google.com/maps'
+}
+
 export default function DpGiftOrderScreen() {
-  const { dpSelectedGiftOrder: o, handleUpdateGiftStatus, navigate, loading } = useApp()
+  const { dpSelectedGiftOrder: o, handleUpdateGiftStatus, navigate, loading, showToast } = useApp()
 
   if (!o) return null
 
   const currentIdx = STATUS_STEPS.indexOf(o.delivery_status)
 
   const getNextAction = () => {
-    if (o.delivery_status === 'assigned') return { label: '🚗 Start Delivery', next: 'en_route' }
+    if (o.delivery_status === 'assigned') return { label: '🚗 Start Navigation', next: 'en_route' }
     if (o.delivery_status === 'en_route') return { label: '📍 Arrived at Location', next: 'arrived' }
     if (o.delivery_status === 'arrived') return { label: '✅ Gift Delivered', next: 'delivered' }
     return null
@@ -130,13 +139,33 @@ export default function DpGiftOrderScreen() {
           </Card>
         )}
 
-        {/* Action button */}
+        {/* Action buttons */}
         {action && o.delivery_status !== 'delivered' && (
-          <Button onClick={() => handleUpdateGiftStatus(o.id, action.next)}
-            disabled={loading}
-            className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-4 rounded-2xl text-base">
-            {loading ? 'Updating...' : action.label}
-          </Button>
+          <div className="space-y-2">
+            {/* When en_route, show a secondary "Reopen Maps" button */}
+            {o.delivery_status === 'en_route' && (
+              <Button
+                onClick={() => { try { window.open(buildGiftMapsUrl(o), '_blank', 'noopener,noreferrer') } catch {} }}
+                variant="outline"
+                className="w-full border-pink-200 text-pink-600 font-semibold py-3 rounded-2xl"
+              >
+                <Navigation className="w-4 h-4 mr-2" /> Reopen Google Maps
+              </Button>
+            )}
+            <Button
+              onClick={async () => {
+                await handleUpdateGiftStatus(o.id, action.next)
+                // Open Google Maps when starting delivery
+                if (action.next === 'en_route') {
+                  try { window.open(buildGiftMapsUrl(o), '_blank', 'noopener,noreferrer') } catch {}
+                }
+              }}
+              disabled={loading}
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-4 rounded-2xl text-base"
+            >
+              {loading ? 'Updating...' : action.label}
+            </Button>
+          </div>
         )}
 
         {o.delivery_status === 'delivered' && (

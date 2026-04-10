@@ -50,7 +50,8 @@ export default function DpEarningsScreen() {
                   <div className="flex gap-2">
                     <Button onClick={async () => {
                       if (!depositAmount) return
-                      await api('dp/deposit-cash', { method: 'POST', body: { dp_id: dpUser.id, amount: Number(depositAmount), deposit_method: 'office_cash', reference_number: depositRef } })
+                      const r = await api('dp/deposit-cash', { method: 'POST', body: { amount: Number(depositAmount), deposit_method: 'office_cash', reference_number: depositRef } })
+                      if (r?.error) { showToast(r.error, 'error'); return }
                       showToast('Deposit recorded!', 'success')
                       setShowDeposit(false); setDepositAmount(''); setDepositRef('')
                       api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })
@@ -59,7 +60,8 @@ export default function DpEarningsScreen() {
                     </Button>
                     <Button onClick={async () => {
                       if (!depositAmount) return
-                      await api('dp/deposit-cash', { method: 'POST', body: { dp_id: dpUser.id, amount: Number(depositAmount), deposit_method: 'bank_transfer', reference_number: depositRef } })
+                      const r = await api('dp/deposit-cash', { method: 'POST', body: { amount: Number(depositAmount), deposit_method: 'bank_transfer', reference_number: depositRef } })
+                      if (r?.error) { showToast(r.error, 'error'); return }
                       showToast('Bank transfer recorded!', 'success')
                       setShowDeposit(false); setDepositAmount(''); setDepositRef('')
                       api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })

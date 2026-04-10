@@ -4,11 +4,23 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  ChevronLeft, Sparkles, CheckCircle2, Plus, Navigation, ScanFace,
-  Timer, Wallet, CreditCard, Phone
+  ChevronLeft, Sparkles, CheckCircle2, Plus, Navigation, Camera,
+  Timer, Wallet, CreditCard, Phone, MapPin, Copy
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { SCREENS, api } from '../lib/constants'
+
+// Build a Google Maps directions URL — prefers precise lat/lng from the
+// customer's pinned address, falls back to a text address, and finally to
+// a plain search if nothing is set.
+function buildMapsUrl(o) {
+  if (o?.delivery_lat && o?.delivery_lng) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`
+  }
+  const addr = [o?.delivery_address, o?.delivery_landmark].filter(Boolean).join(', ')
+  if (addr) return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`
+  return 'https://www.google.com/maps'
+}
 
 export default function DpOrderScreen() {
   const {
@@ -17,10 +29,8 @@ export default function DpOrderScreen() {
   } = useApp()
   const o = dpSelectedOrder
   if (!o) return null
-  const needsFaceScan = o.delivery_status === 'assigned' || o.delivery_status === 'en_route'
-  const needsOtp = o.delivery_status === 'arrived' && o.face_scan
   const isDecorating = o.delivery_status === 'decorating'
-  const isComplete = o.delivery_status === 'delivered'
+  const isComplete   = o.delivery_status === 'delivered'
 
   return (
     <div className="slide-up pb-24 bg-white min-h-screen">
@@ -55,6 +65,40 @@ export default function DpOrderScreen() {
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Status</span><Badge className={`capitalize ${o.delivery_status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-pink-100 text-pink-600'}`}>{o.delivery_status}</Badge></div>
           </CardContent>
         </Card>
+
+        {/* Delivery Address — always visible */}
+        {(o.delivery_address || o.delivery_lat) && (
+          <Card className="border border-blue-100 bg-blue-50/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-gray-700 mb-0.5">Delivery Address</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{o.delivery_address || 'Pin location only'}</p>
+                  {o.delivery_landmark && <p className="text-xs text-gray-400 mt-0.5">Landmark: {o.delivery_landmark}</p>}
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const text = [o.delivery_address, o.delivery_landmark].filter(Boolean).join(', ')
+                    if (text && navigator.clipboard) { navigator.clipboard.writeText(text); showToast('Address copied', 'success') }
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-blue-100 shrink-0"
+                  title="Copy address"
+                >
+                  <Copy className="w-3.5 h-3.5 text-blue-400" />
+                </button>
+              </div>
+              {/* Quick Maps link */}
+              <button
+                onClick={() => { try { window.open(buildMapsUrl(o), '_blank', 'noopener,noreferrer') } catch {} }}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold"
+              >
+                <Navigation className="w-4 h-4" /> Open in Google Maps
+              </button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Kit Items */}
         {(o.kit_items || []).length > 0 && (
@@ -121,20 +165,41 @@ export default function DpOrderScreen() {
 
         {/* Status Actions */}
         {o.delivery_status === 'assigned' && (
-          <Button onClick={async () => {
-            await api('dp/update-status', { method: 'POST', body: { order_id: o.id, status: 'en_route', dp_id: dpUser?.id } })
-            await api('dp/generate-otp', { method: 'POST', body: { order_id: o.id } })
-            setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'en_route' }))
-            showToast('On your way! OTP generated for customer.', 'success')
-          }} className="w-full h-14 gradient-pink border-0 text-white font-bold rounded-2xl shadow-pink">
-            <Navigation className="w-5 h-5 mr-2" /> Start Navigation / En Route
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={async () => {
+                const upd = await api('dp/update-status', { method: 'POST', body: { order_id: o.id, status: 'en_route' } })
+                if (upd?.error) { showToast(upd.error, 'error'); return }
+                const otpRes = await api('dp/generate-otp', { method: 'POST', body: { order_id: o.id } })
+                if (otpRes?.error) { showToast(otpRes.error, 'error'); return }
+                setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'en_route' }))
+                showToast('On your way! OTP sent to customer.', 'success')
+                // Open Google Maps in a new tab for navigation
+                try { window.open(buildMapsUrl(o), '_blank', 'noopener,noreferrer') } catch {}
+              }}
+              className="w-full h-14 gradient-pink border-0 text-white font-bold rounded-2xl shadow-pink"
+            >
+              <Navigation className="w-5 h-5 mr-2" /> Start Navigation &amp; Notify Customer
+            </Button>
+          </div>
         )}
 
         {o.delivery_status === 'en_route' && (
-          <Button onClick={() => { navigate(SCREENS.DP_VERIFY) }} className="w-full h-14 gradient-pink border-0 text-white font-bold rounded-2xl shadow-pink">
-            <ScanFace className="w-5 h-5 mr-2" /> Arrived - Verify Identity
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={() => { try { window.open(buildMapsUrl(o), '_blank', 'noopener,noreferrer') } catch {} }}
+              variant="outline"
+              className="w-full h-12 border-pink-200 text-pink-600 font-semibold rounded-2xl"
+            >
+              <Navigation className="w-4 h-4 mr-2" /> Reopen Google Maps
+            </Button>
+            <Button
+              onClick={() => { navigate(SCREENS.DP_VERIFY) }}
+              className="w-full h-14 gradient-pink border-0 text-white font-bold rounded-2xl shadow-pink"
+            >
+              <Camera className="w-5 h-5 mr-2" /> Arrived — Check In with Selfie
+            </Button>
+          </div>
         )}
 
         {isDecorating && (
@@ -144,7 +209,8 @@ export default function DpOrderScreen() {
               <p className="text-xl font-bold text-orange-600">{formatTimer(dpTimerSeconds)}</p>
               <p className="text-xs text-orange-400 mb-3">Decoration in progress</p>
               <Button onClick={async () => {
-                await api('dp/complete', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id } })
+                const r = await api('dp/complete', { method: 'POST', body: { order_id: o.id } })
+                if (r?.error) { showToast(r.error, 'error'); return }
                 try { localStorage.removeItem('fd_dp_timer') } catch {}
                 setDpActiveTimer(null); setDpTimerSeconds(0)
                 setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'delivered' }))
@@ -166,14 +232,16 @@ export default function DpOrderScreen() {
               <p className="text-xs text-gray-400 mb-3">Remaining: Rs {remaining} (50% on delivery)</p>
               <div className="flex gap-2">
                 <Button onClick={async () => {
-                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: remaining, method: 'cash' } })
+                  const r = await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, amount: remaining, method: 'cash' } })
+                  if (r?.error) { showToast(r.error, 'error'); return }
                   setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
                   showToast('Cash collected!', 'success')
                 }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl">
                   <Wallet className="w-4 h-4 mr-1" /> Cash
                 </Button>
                 <Button onClick={async () => {
-                  await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, dp_id: dpUser?.id, amount: remaining, method: 'online' } })
+                  const r = await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, amount: remaining, method: 'online' } })
+                  if (r?.error) { showToast(r.error, 'error'); return }
                   setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
                   showToast('Online payment recorded!', 'success')
                 }} variant="outline" className="flex-1 border-pink-200 text-pink-500 font-semibold rounded-xl">

@@ -5,16 +5,24 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Star, RefreshCw, Timer, Calendar, PlayCircle, Package,
-  CheckCircle2, Trash2, Clock, ChevronRight, Truck
+  CheckCircle2, Trash2, Clock, ChevronRight, Truck, MapPin
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { SCREENS, api, LOGO_URL } from '../lib/constants'
+
+function greetingByTime() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good Morning'
+  if (h < 17) return 'Good Afternoon'
+  return 'Good Evening'
+}
 
 export default function DpHomeScreen() {
   const {
     dpUser, dpDashboard, dpOrders, setDpOrders, dpActiveTimer, dpTimerSeconds,
     pendingOrders, pendingGiftOrders, loading, navigate, refreshDashboard, handleAcceptOrder,
-    handleDeclineOrder, handleAcceptGiftOrder, handleDeclineGiftOrder, formatTimer, setDpSelectedOrder
+    handleDeclineOrder, handleAcceptGiftOrder, handleDeclineGiftOrder, formatTimer, setDpSelectedOrder,
+    showToast
   } = useApp()
   const today = dpDashboard?.date || new Date().toISOString().split('T')[0]
   const todayOrders = dpDashboard?.today_orders || []
@@ -22,6 +30,7 @@ export default function DpHomeScreen() {
   const refreshDp = () => {
     refreshDashboard(dpUser.id)
     api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
+    showToast('Refreshed', 'success')
   }
   return (
     <div className="slide-up pb-24 bg-white min-h-screen">
@@ -32,7 +41,7 @@ export default function DpHomeScreen() {
               <img src={LOGO_URL} alt="FatafatDecor" className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="text-white/70 text-xs">Decorator Partner</p>
+              <p className="text-white/70 text-xs">{greetingByTime()}</p>
               <h1 className="text-white text-xl font-bold">{dpUser?.name}</h1>
             </div>
           </div>
@@ -89,10 +98,17 @@ export default function DpHomeScreen() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-bold text-gray-800 text-sm">Order #{o.id.slice(0, 8)}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{o.delivery_address || 'Address not set'}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Received just now</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                      <p className="text-xs text-gray-500 line-clamp-1">{o.delivery_address || 'Address not set'}</p>
+                    </div>
+                    {o.delivery_slot && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {o.delivery_slot.date} · {o.delivery_slot.hour}:00–{o.delivery_slot.hour + 1}:00
+                      </p>
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0 ml-3">
                     <p className="font-bold text-green-600 text-base">Rs {o.total_cost}</p>
                     <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">NEW</span>
                   </div>

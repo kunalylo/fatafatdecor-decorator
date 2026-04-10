@@ -31,18 +31,37 @@ export const CREDIT_PACKAGES = [
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
+// Endpoints where a 401 should NOT trigger an auto-logout event —
+// because the user is actively attempting to log in / hasn't authenticated yet.
+const AUTH_ENDPOINTS = new Set(['dp/login'])
+
 export const api = async (path, opts = {}) => {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('dp_token') : null
-    const headers = { 'Content-Type': 'application/json' }
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) }
     if (token) headers['Authorization'] = `Bearer ${token}`
     const url = API_BASE ? `${API_BASE}/api/${path}` : `/api/${path}`
     const res = await fetch(url, {
-      headers,
       ...opts,
+      headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined
     })
-    return res.json()
+    // 401 on any non-login endpoint means our token is expired / rejected.
+    // Fire an event so the AppContext can force a clean logout.
+    if (res.status === 401 && !AUTH_ENDPOINTS.has(path) && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('dp_token')
+        localStorage.removeItem('fd_dp_user')
+        window.dispatchEvent(new CustomEvent('dp:auth-expired'))
+      } catch {}
+    }
+    // If the server didn't return JSON (e.g. 502 from a proxy), don't blow up
+    const text = await res.text()
+    try {
+      return text ? JSON.parse(text) : {}
+    } catch {
+      return { error: `Unexpected server response (${res.status})` }
+    }
   } catch (e) {
     console.error(`API error [${path}]:`, e.message)
     return { error: 'Network error. Please check your connection.' }
