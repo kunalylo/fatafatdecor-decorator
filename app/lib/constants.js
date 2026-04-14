@@ -1,8 +1,8 @@
 'use client'
 
 const IK = 'https://ik.imagekit.io/jcp2urr7b'
-export const LOGO_URL  = `${IK}/branding/logo.png`
-export const ICON_URL  = `${IK}/branding/icon-512.png`
+export const LOGO_URL  = `${IK}/branding/logo.png?v=3`
+export const ICON_URL  = `${IK}/branding/icon-512.png?v=3`
 
 export const SCREENS = {
   DP_AUTH: 'dp_auth', DP_HOME: 'dp_home', DP_ORDER: 'dp_order',
