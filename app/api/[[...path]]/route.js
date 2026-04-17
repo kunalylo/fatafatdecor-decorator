@@ -480,25 +480,6 @@ async function handleRoute(request, { params }) {
       return ok({ user_id: user.id, credits: user.credits })
     }
 
-    // ====== DELIVERY PERSONS ======
-    if (path[0] === 'delivery-persons' && !path[1] && method === 'GET') {
-      const dps = await db.collection('delivery_persons').find({}).toArray()
-      return ok(dps.map(({ _id, ...dp }) => dp))
-    }
-    if (path[0] === 'delivery-persons' && !path[1] && method === 'POST') {
-      const body = await request.json()
-      const dp = { id: uuidv4(), name: body.name, phone: body.phone || '', password: hashPwd(body.password || '1234'), is_active: true, current_location: null, schedule: {}, rating: 5.0, total_deliveries: 0, created_at: new Date() }
-      await db.collection('delivery_persons').insertOne(dp)
-      const { _id, password: _, ...clean } = dp; return ok(clean)
-    }
-    if (path[0] === 'delivery-persons' && path[1] && method === 'PUT') {
-      const body = await request.json(); delete body._id
-      await db.collection('delivery_persons').updateOne({ id: path[1] }, { $set: body })
-      const dp = await db.collection('delivery_persons').findOne({ id: path[1] })
-      if (!dp) return err('Delivery person not found', 404)
-      const { _id, ...clean } = dp; return ok(clean)
-    }
-
     // ====== USER LOCATION ======
     if (path[0] === 'user' && path[1] === 'location' && method === 'POST') {
       const { user_id, lat, lng } = await request.json()
