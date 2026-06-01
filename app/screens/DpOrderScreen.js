@@ -32,6 +32,13 @@ export default function DpOrderScreen() {
   const isDecorating = o.delivery_status === 'decorating'
   const isComplete   = o.delivery_status === 'delivered'
 
+  // Reference-flow orders show the source design photo as the "target to recreate".
+  // Customer prices are hidden — decorator only sees procurement quantities.
+  const isReferenceFlow = o.flow === 'reference' || !!o.reference_design_id
+  const referenceImage  = o.reference_image_url || o.reference_thumbnail_url
+  // Remaining to collect = total - already paid (50%)
+  const remainingToCollect = Math.max(0, Math.round((o.total_cost || 0) - (o.payment_amount || 0)))
+
   return (
     <div className="slide-up pb-24 bg-white min-h-screen">
       <div className="flex items-center gap-3 p-4">
@@ -39,8 +46,23 @@ export default function DpOrderScreen() {
         <h1 className="font-bold text-lg text-gray-800">Order #{o.id?.slice(0, 8)}</h1>
       </div>
       <div className="px-4 space-y-4">
-        {/* Kit Name - Prominent for Decorator */}
-        {o.kit_name && (
+
+        {/* REFERENCE FLOW: Show the reference image as the "target to recreate" */}
+        {isReferenceFlow && referenceImage && (
+          <Card className="border-2 border-pink-300 bg-pink-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-pink-500" />
+                <span className="text-xs font-semibold text-pink-500 uppercase tracking-wide">Recreate This Look</span>
+              </div>
+              <img src={referenceImage} alt="Reference target" className="w-full rounded-xl border border-pink-200 bg-white" />
+              <p className="text-[11px] text-gray-500 mt-2 text-center">This is what the customer expects — match the style</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Kit Name - Prominent for Decorator (legacy kit flow only) */}
+        {!isReferenceFlow && o.kit_name && (
           <Card className="border-2 border-pink-300 bg-pink-50">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
@@ -52,15 +74,28 @@ export default function DpOrderScreen() {
           </Card>
         )}
 
+        {/* Decorated preview (AI image — what customer sees) */}
         {o.decorated_image && (
-          <img src={o.decorated_image} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
+          <div>
+            {isReferenceFlow && <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1 px-1">Customer's AI preview</p>}
+            <img src={o.decorated_image} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
+          </div>
         )}
         <Card className="border border-gray-100">
           <CardContent className="p-4 space-y-2">
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Customer</span><span className="text-sm font-semibold text-gray-700">{o.customer?.name}</span></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Phone</span><a href={`tel:${o.customer?.phone}`} className="text-sm font-semibold text-pink-500">{o.customer?.phone}</a></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Slot</span><span className="text-sm">{o.delivery_slot?.date} at {o.delivery_slot?.hour}:00</span></div>
-            <div className="flex justify-between"><span className="text-gray-400 text-sm">Total</span><span className="text-sm font-bold text-pink-500">Rs {o.total_cost}</span></div>
+            {/* Reference-flow: show only the remaining amount to collect on delivery.
+                Legacy kit-flow: show the full customer total. */}
+            {isReferenceFlow ? (
+              <div className="flex justify-between items-center bg-green-50 -mx-1 px-3 py-2 rounded-lg border border-green-200">
+                <span className="text-sm font-semibold text-green-700">Collect on delivery</span>
+                <span className="text-base font-bold text-green-600">Rs {remainingToCollect.toLocaleString('en-IN')}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between"><span className="text-gray-400 text-sm">Total</span><span className="text-sm font-bold text-pink-500">Rs {o.total_cost}</span></div>
+            )}
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Payment</span><Badge className="capitalize">{o.payment_status}</Badge></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Status</span><Badge className={`capitalize ${o.delivery_status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-pink-100 text-pink-600'}`}>{o.delivery_status}</Badge></div>
           </CardContent>
@@ -100,44 +135,86 @@ export default function DpOrderScreen() {
           </Card>
         )}
 
-        {/* Kit Items */}
-        {(o.kit_items || []).length > 0 && (
-          <div>
-            <h3 className="font-bold text-sm text-pink-600 mb-2">Kit Items to Collect</h3>
-            {o.kit_items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
-                <div className="w-5 h-5 rounded border-2 border-pink-300 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-pink-400" /></div>
-                <span className="text-xs text-gray-600 flex-1">{item.quantity}x {item.name} {item.color ? `(${item.color})` : ''}</span>
+        {/* REFERENCE FLOW: clean procurement checklist (no prices, grouped by category) */}
+        {isReferenceFlow ? (
+          (() => {
+            const items = o.items || []
+            if (items.length === 0) return null
+            // Group by category for cleaner browsing
+            const grouped = items.reduce((acc, item) => {
+              const cat = item.category || 'Other'
+              if (!acc[cat]) acc[cat] = []
+              acc[cat].push(item)
+              return acc
+            }, {})
+            const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)
+            return (
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <h3 className="font-bold text-sm text-pink-600">Procurement Checklist</h3>
+                  <span className="text-[10px] text-gray-400">{totalUnits} units · {items.length} SKUs</span>
+                </div>
+                {Object.entries(grouped).map(([category, list]) => (
+                  <div key={category} className="mb-3">
+                    <p className="text-[10px] font-bold text-pink-500 uppercase tracking-wide mb-1">{category}</p>
+                    {list.map((item, i) => (
+                      <div key={item.id || `${category}-${i}`} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
+                        <div className="w-5 h-5 rounded border-2 border-pink-300 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-3 h-3 text-pink-400" />
+                        </div>
+                        <span className="text-xs text-gray-700 flex-1">
+                          <strong>{item.quantity}×</strong> {item.name}
+                        </span>
+                        {item.matched_sku_code && (
+                          <span className="text-[9px] font-mono text-gray-400 truncate max-w-[140px]">{item.matched_sku_code}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })()
+        ) : (
+          <>
+            {/* LEGACY KIT FLOW: Kit + Addon items shown separately */}
+            {(o.kit_items || []).length > 0 && (
+              <div>
+                <h3 className="font-bold text-sm text-pink-600 mb-2">Kit Items to Collect</h3>
+                {o.kit_items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
+                    <div className="w-5 h-5 rounded border-2 border-pink-300 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-pink-400" /></div>
+                    <span className="text-xs text-gray-600 flex-1">{item.quantity}x {item.name} {item.color ? `(${item.color})` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-        {/* Add-on Items */}
-        {(o.addon_items || []).length > 0 && (
-          <div>
-            <h3 className="font-bold text-sm text-purple-600 mb-2">Additional Single Items</h3>
-            {o.addon_items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
-                <Plus className="w-4 h-4 text-purple-400" />
-                <span className="text-xs text-gray-600 flex-1">{item.quantity}x {item.name} {item.color ? `(${item.color})` : ''}</span>
+            {(o.addon_items || []).length > 0 && (
+              <div>
+                <h3 className="font-bold text-sm text-purple-600 mb-2">Additional Single Items</h3>
+                {o.addon_items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
+                    <Plus className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs text-gray-600 flex-1">{item.quantity}x {item.name} {item.color ? `(${item.color})` : ''}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {/* Fallback items list */}
-        {!(o.kit_items?.length) && !(o.addon_items?.length) && (
-          <div>
-            <h3 className="font-bold text-sm text-gray-700 mb-2">Items Checklist</h3>
-            {(o.items || []).map((item, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-gray-600 flex-1">{item.name} {item.color ? `(${item.color})` : ''}</span>
-                <span className="text-xs text-gray-400">x{item.quantity}</span>
+            {!(o.kit_items?.length) && !(o.addon_items?.length) && (
+              <div>
+                <h3 className="font-bold text-sm text-gray-700 mb-2">Items Checklist</h3>
+                {(o.items || []).map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-gray-600 flex-1">{item.name} {item.color ? `(${item.color})` : ''}</span>
+                    <span className="text-xs text-gray-400">x{item.quantity}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Gift Items (when decoration order also has gifts) */}
