@@ -1,11 +1,12 @@
 'use client'
 
+import { useState, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   ChevronLeft, Sparkles, CheckCircle2, Plus, Navigation, Camera,
-  Timer, Wallet, CreditCard, Phone, MapPin, Copy
+  Timer, Wallet, CreditCard, Phone, MapPin, Copy, Upload, Trash2, ImagePlus, Loader2
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { SCREENS, api } from '../lib/constants'
@@ -74,12 +75,58 @@ export default function DpOrderScreen() {
           </Card>
         )}
 
-        {/* Decorated preview (AI image — what customer sees) */}
-        {o.decorated_image && (
-          <div>
-            {isReferenceFlow && <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1 px-1">Customer's AI preview</p>}
+        {/* Three-image grid for reference flow:
+            REFERENCE (target) · ORIGINAL ROOM (canvas) · AI PREVIEW (what customer expects) */}
+        {isReferenceFlow ? (
+          <Card className="border border-gray-100">
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Job References</p>
+              <div className="grid grid-cols-3 gap-2">
+                {/* 1. Reference (target style) */}
+                <div className="space-y-1">
+                  <div className="aspect-square overflow-hidden rounded-lg border-2 border-pink-300 bg-pink-50">
+                    {referenceImage ? (
+                      <img src={referenceImage} alt="Reference" className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={() => window.open(referenceImage, '_blank')} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">—</div>
+                    )}
+                  </div>
+                  <p className="text-[9px] font-bold text-pink-600 uppercase text-center leading-tight">Reference<br/>(target)</p>
+                </div>
+                {/* 2. Original room photo (customer's actual space) */}
+                <div className="space-y-1">
+                  <div className="aspect-square overflow-hidden rounded-lg border-2 border-blue-300 bg-blue-50">
+                    {o.original_image_url ? (
+                      <img src={o.original_image_url} alt="Customer's room" className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={() => window.open(o.original_image_url, '_blank')} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No photo</div>
+                    )}
+                  </div>
+                  <p className="text-[9px] font-bold text-blue-600 uppercase text-center leading-tight">Customer<br/>Room</p>
+                </div>
+                {/* 3. AI preview (what was generated for customer) */}
+                <div className="space-y-1">
+                  <div className="aspect-square overflow-hidden rounded-lg border-2 border-purple-300 bg-purple-50">
+                    {o.decorated_image ? (
+                      <img src={o.decorated_image} alt="AI preview" className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={() => window.open(o.decorated_image, '_blank')} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">—</div>
+                    )}
+                  </div>
+                  <p className="text-[9px] font-bold text-purple-600 uppercase text-center leading-tight">AI Preview<br/>(customer view)</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2 text-center italic">Tap any image to enlarge</p>
+            </CardContent>
+          </Card>
+        ) : (
+          /* Legacy kit flow — single decorated image */
+          o.decorated_image && (
             <img src={o.decorated_image} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
-          </div>
+          )
         )}
         <Card className="border border-gray-100">
           <CardContent className="p-4 space-y-2">
@@ -240,6 +287,11 @@ export default function DpOrderScreen() {
           </Card>
         )}
 
+        {/* Completion Photos — available once decorator has arrived. Customer + admin see these. */}
+        {['arrived', 'decorating', 'delivered', 'completed'].includes(o.delivery_status) && (
+          <CompletionPhotosCard order={o} setDpSelectedOrder={setDpSelectedOrder} showToast={showToast} />
+        )}
+
         {/* Status Actions */}
         {o.delivery_status === 'assigned' && (
           <div className="space-y-2">
@@ -339,5 +391,132 @@ export default function DpOrderScreen() {
         )}
       </div>
     </div>
+  )
+}
+
+// Compresses a File to a JPEG data URL, max edge `maxPx` (defaults to 1280),
+// quality 0.82. Keeps payload reasonable for the JSON upload endpoint.
+async function compressToDataURL(file, maxPx = 1280, quality = 0.82) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(fr.result)
+    fr.onerror = () => reject(fr.error)
+    fr.readAsDataURL(file)
+  })
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image()
+    i.onload = () => resolve(i)
+    i.onerror = () => reject(new Error('Image decode failed'))
+    i.src = dataUrl
+  })
+  let { width: w, height: h } = img
+  if (Math.max(w, h) > maxPx) {
+    const scale = maxPx / Math.max(w, h)
+    w = Math.round(w * scale)
+    h = Math.round(h * scale)
+  }
+  const canvas = document.createElement('canvas')
+  canvas.width = w; canvas.height = h
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+  return canvas.toDataURL('image/jpeg', quality)
+}
+
+function CompletionPhotosCard({ order, setDpSelectedOrder, showToast }) {
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+  const photos = Array.isArray(order.completion_photos) ? order.completion_photos : []
+
+  const onPick = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    if (files.length > 6) {
+      showToast('Max 6 photos per upload', 'error')
+      e.target.value = ''
+      return
+    }
+    setUploading(true)
+    try {
+      const compressed = await Promise.all(files.map(f => compressToDataURL(f).catch(() => null)))
+      const validPhotos = compressed.filter(Boolean)
+      if (validPhotos.length === 0) {
+        showToast('Could not read any of the selected photos', 'error')
+        return
+      }
+      const res = await api('dp/completion-photos', { method: 'POST', body: { order_id: order.id, photos: validPhotos } })
+      if (res.error) { showToast(res.error, 'error'); return }
+      const newPhotos = res.photos || []
+      setDpSelectedOrder(prev => ({
+        ...prev,
+        completion_photos: [...(prev.completion_photos || []), ...newPhotos],
+      }))
+      showToast(`Uploaded ${res.uploaded} photo${res.uploaded === 1 ? '' : 's'}`, 'success')
+    } catch (e) {
+      showToast('Upload failed: ' + e.message, 'error')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const removePhoto = async (idx) => {
+    if (!confirm('Remove this photo?')) return
+    const res = await api(`dp/completion-photos/${order.id}/${idx}`, { method: 'DELETE' })
+    if (res.error) { showToast(res.error, 'error'); return }
+    setDpSelectedOrder(prev => ({
+      ...prev,
+      completion_photos: (prev.completion_photos || []).filter((_, i) => i !== idx),
+    }))
+    showToast('Photo removed', 'success')
+  }
+
+  return (
+    <Card className="border border-emerald-200 bg-emerald-50/40">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Camera className="w-5 h-5 text-emerald-600" />
+          <h3 className="font-bold text-sm text-emerald-700">Completion Photos</h3>
+          {photos.length > 0 && (
+            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">{photos.length}</span>
+          )}
+        </div>
+        <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+          Upload 2-4 clear photos of the finished decoration. These are shared with the customer + admin so payment can be released.
+        </p>
+
+        {photos.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {photos.map((p, i) => (
+              <div key={p.url || i} className="relative aspect-square rounded-lg overflow-hidden border border-emerald-200 bg-white">
+                <img src={p.url} alt={`Completion ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in"
+                  onClick={() => window.open(p.url, '_blank')} />
+                <button onClick={() => removePhoto(i)}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          capture="environment"
+          onChange={onPick}
+          className="hidden"
+        />
+        <Button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-semibold rounded-xl flex items-center justify-center gap-2"
+        >
+          {uploading
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+            : <><ImagePlus className="w-4 h-4" /> {photos.length > 0 ? 'Add More Photos' : 'Upload Photos'}</>}
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
