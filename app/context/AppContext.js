@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import { SCREENS, api } from '../lib/constants'
+import { registerServiceWorker, subscribeToPush, primeAudio, playChime, vibrate } from '../lib/notify'
 
 export const AppContext = createContext({})
 export const useApp = () => useContext(AppContext)
@@ -28,6 +29,10 @@ export function AppProvider({ children }) {
   const [otpInput, setOtpInput] = useState('')
   const dpVideoRef = useRef(null)
   const dpTimerRef = useRef(null)
+  // Push / new-order notification state
+  const swRegRef = useRef(null)
+  const seenOrderIdsRef = useRef(new Set())
+  const primedRef = useRef(false)
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type })
@@ -44,6 +49,37 @@ export function AppProvider({ children }) {
     else setScreen(SCREENS.DP_HOME)
   }, [prevScreen])
 
+  // ── In-app alert when a new order arrives (sound + buzz + toast) ──
+  const alertNewOrders = useCallback((count) => {
+    playChime()
+    vibrate()
+    showToast(count === 1 ? '🎉 New order available! Go to Home to accept.' : `🎉 ${count} new orders available!`, 'success')
+  }, [showToast])
+
+  // ── Register the service worker + subscribe to Web Push ──
+  // Safe to call repeatedly. Push stays gracefully off until the VAPID env
+  // vars are set on the backend (then this starts working with no app change).
+  const setupNotifications = useCallback(async () => {
+    try {
+      const reg = await registerServiceWorker()
+      swRegRef.current = reg
+      await subscribeToPush(reg, api)
+    } catch {}
+  }, [])
+
+  // Best-effort: drop this device's push subscription on logout
+  const unsubscribePush = useCallback(async () => {
+    try {
+      if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+      const reg = await navigator.serviceWorker.getRegistration()
+      const sub = reg && await reg.pushManager.getSubscription()
+      if (sub) {
+        await api('dp/push-unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } }).catch(() => {})
+        await sub.unsubscribe().catch(() => {})
+      }
+    } catch {}
+  }, [])
+
   // ── Persist session to localStorage ──
   useEffect(() => {
     try {
@@ -55,6 +91,7 @@ export function AppProvider({ children }) {
         const parsed = JSON.parse(saved)
         setDpUser(parsed)
         setScreen(SCREENS.DP_HOME)
+        setupNotifications()
       } else {
         localStorage.removeItem('fd_dp_user')
         localStorage.removeItem('dp_token')
@@ -92,11 +129,24 @@ export function AppProvider({ children }) {
     api(`dp/dashboard/${uid}`).then(d => {
       if (!d.error) {
         setDpDashboard(d)
-        setPendingOrders(d.pending_orders || [])
-        if (d.pending_gift_orders) setPendingGiftOrders(d.pending_gift_orders)
+        const pending = d.pending_orders || []
+        const pendingGifts = d.pending_gift_orders || []
+        setPendingOrders(pending)
+        setPendingGiftOrders(pendingGifts)
+        // Alert on newly-arrived orders. The first poll only primes the "seen"
+        // set so we don't alert for orders that were already waiting.
+        const incomingIds = [...pending, ...pendingGifts].map(o => o.id)
+        if (!primedRef.current) {
+          incomingIds.forEach(id => seenOrderIdsRef.current.add(id))
+          primedRef.current = true
+        } else {
+          const fresh = incomingIds.filter(id => !seenOrderIdsRef.current.has(id))
+          fresh.forEach(id => seenOrderIdsRef.current.add(id))
+          if (fresh.length > 0) alertNewOrders(fresh.length)
+        }
       }
     })
-  }, [])
+  }, [alertNewOrders])
 
   useEffect(() => {
     if (!dpUser) return
@@ -107,6 +157,20 @@ export function AppProvider({ children }) {
     const orderPoll = setInterval(() => refreshDashboard(dpUser.id), 15000)
     return () => clearInterval(orderPoll)
   }, [dpUser?.id, refreshDashboard])
+
+  // When a push arrives while the app is open & focused, the service worker
+  // forwards it here (postMessage) so we show an instant chime + toast.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+    const onMsg = (event) => {
+      if (event.data && event.data.type === 'new-order') {
+        alertNewOrders(1)
+        if (dpUser?.id) refreshDashboard(dpUser.id)
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onMsg)
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg)
+  }, [dpUser?.id, refreshDashboard, alertNewOrders])
 
   // GPS: only track location while there is an active order in en_route/
   // arrived/decorating status. When idle, we don't burn battery or hit the
@@ -177,6 +241,8 @@ export function AppProvider({ children }) {
       // Strip token out of the persisted user object — no need to store twice
       const { token, ...userOnly } = data
       setDpUser(userOnly)
+      primeAudio()          // unlock audio on this user gesture so the chime can play later
+      setupNotifications()  // register service worker + subscribe to push
       showToast(`Welcome, ${userOnly.name}!`, 'success')
       navigate(SCREENS.DP_HOME)
     } catch (e) { showToast('Login failed', 'error') }
@@ -189,6 +255,8 @@ export function AppProvider({ children }) {
       localStorage.removeItem('fd_dp_user')
       localStorage.removeItem('fd_dp_timer')
     } catch {}
+    seenOrderIdsRef.current = new Set()
+    primedRef.current = false
     setDpUser(null)
     setDpDashboard(null)
     setDpOrders([])
@@ -207,6 +275,7 @@ export function AppProvider({ children }) {
   }, [])
 
   const handleDpLogout = () => {
+    unsubscribePush()
     wipeSession()
     showToast('Logged out', 'success')
   }
