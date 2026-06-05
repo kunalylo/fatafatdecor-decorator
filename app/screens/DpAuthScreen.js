@@ -4,16 +4,24 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Truck, Loader2, Star, Shield, Zap, ArrowRight, ChevronLeft } from 'lucide-react'
+import { Loader2, Star, Shield, Zap, ArrowRight, ChevronLeft, MessageCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { LOGO_URL } from '../lib/constants'
+import { LOGO_URL, SUPPORT_PHONE } from '../lib/constants'
 
 export default function DpAuthScreen() {
   const { loading, dpAuthForm, setDpAuthForm, handleDpLogin } = useApp()
-  const [showLogin, setShowLogin] = useState(false)
+  // 'landing' | 'apply' | 'login'
+  const [view, setView] = useState('landing')
+
+  const openWhatsApp = () => {
+    const msg = encodeURIComponent(
+      "Hi FatafatDecor team! I'd like to apply to become a decorator partner. Please guide me through the process."
+    )
+    window.open(`https://wa.me/91${SUPPORT_PHONE}?text=${msg}`, '_blank')
+  }
 
   /* ── Landing Page ── */
-  if (!showLogin) {
+  if (view === 'landing') {
     return (
       <div className="min-h-screen bg-white flex flex-col fade-in">
 
@@ -50,9 +58,9 @@ export default function DpAuthScreen() {
 
         {/* CTAs */}
         <div className="px-6 pb-10 space-y-3">
-          {/* Primary: Get Certified */}
+          {/* Primary: Get Certified → apply screen */}
           <Button
-            onClick={() => window.open(process.env.NEXT_PUBLIC_APPLY_URL || 'https://fatafatdecor.ylo.co.in/apply-decorator', '_blank')}
+            onClick={() => setView('apply')}
             className="w-full h-14 gradient-pink border-0 text-white font-bold text-base rounded-2xl shadow-pink flex items-center justify-center gap-2"
           >
             <Star className="w-5 h-5" />
@@ -60,13 +68,66 @@ export default function DpAuthScreen() {
             <ArrowRight className="w-5 h-5 ml-1" />
           </Button>
 
-          {/* Secondary: Already a decorator */}
+          {/* Secondary: Already a decorator → login */}
           <button
-            onClick={() => setShowLogin(true)}
+            onClick={() => setView('login')}
             className="w-full py-4 text-sm font-semibold text-pink-500 rounded-2xl border-2 border-pink-200 hover:bg-pink-50 transition-all"
           >
             Already a Decorator? Login
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Apply / Become a Decorator ── */
+  if (view === 'apply') {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 fade-in">
+        <div className="w-full max-w-sm">
+
+          {/* Back */}
+          <button
+            onClick={() => setView('landing')}
+            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-6 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Back
+          </button>
+
+          {/* Logo */}
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 shadow-xl">
+              <img src={LOGO_URL} alt="FatafatDecor" className="w-full h-full object-cover" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-gradient-pink mb-1">Become a Decorator</h1>
+            <p className="text-gray-400 text-sm">Join the FatafatDecor partner network</p>
+          </div>
+
+          <Card className="w-full border border-gray-100 shadow-lg shadow-pink-100/50">
+            <CardContent className="p-6 space-y-5">
+              <p className="text-sm text-gray-600 leading-relaxed text-center">
+                To become a certified FatafatDecor decorator, please contact our team.
+                We&apos;ll verify your details and set up your partner account so you can
+                start receiving decoration orders.
+              </p>
+
+              {/* WhatsApp CTA */}
+              <Button
+                onClick={openWhatsApp}
+                className="w-full h-12 bg-[#25D366] hover:bg-[#1ebe5b] border-0 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Contact us on WhatsApp
+              </Button>
+
+              <p className="text-xs text-center text-gray-400">
+                Already a decorator?{' '}
+                <button onClick={() => setView('login')} className="text-pink-500 font-semibold">
+                  Login
+                </button>
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -79,7 +140,7 @@ export default function DpAuthScreen() {
 
         {/* Back */}
         <button
-          onClick={() => setShowLogin(false)}
+          onClick={() => setView('landing')}
           className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-6 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
@@ -118,7 +179,7 @@ export default function DpAuthScreen() {
             </Button>
             <p className="text-xs text-center text-gray-400">
               Not registered?{' '}
-              <button onClick={() => setShowLogin(false)} className="text-pink-500 font-semibold">
+              <button onClick={() => setView('apply')} className="text-pink-500 font-semibold">
                 Get Certified
               </button>
             </p>

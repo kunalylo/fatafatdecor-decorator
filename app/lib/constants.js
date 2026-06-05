@@ -1,8 +1,10 @@
 'use client'
 
 const IK = 'https://ik.imagekit.io/jcp2urr7b'
-export const LOGO_URL  = `${IK}/branding/logo.png?v=3`
+// Brand icon (pink) — the same asset the customer + mobile apps use everywhere
+export const LOGO_URL  = `${IK}/branding/icon-512.png?v=3`
 export const ICON_URL  = `${IK}/branding/icon-512.png?v=3`
+export const SUPPORT_PHONE = '6204711205'   // WhatsApp for decorator applications / support
 
 export const SCREENS = {
   DP_AUTH: 'dp_auth', DP_HOME: 'dp_home', DP_ORDER: 'dp_order',
