@@ -369,10 +369,36 @@ export default function DpOrderScreen() {
                   <Wallet className="w-4 h-4 mr-1" /> Cash
                 </Button>
                 <Button onClick={async () => {
-                  const r = await api('dp/collect-payment', { method: 'POST', body: { order_id: o.id, amount: remaining, method: 'online' } })
-                  if (r?.error) { showToast(r.error, 'error'); return }
-                  setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
-                  showToast('Online payment recorded!', 'success')
+                  try {
+                    const ord = await api('dp/collect-payment/create-online', { method: 'POST', body: { order_id: o.id } })
+                    if (ord?.error) { showToast(ord.error, 'error'); return }
+                    if (!window.Razorpay) { showToast('Payment gateway still loading, try again', 'error'); return }
+                    const rzp = new window.Razorpay({
+                      key: ord.razorpay_key_id,
+                      amount: ord.amount,
+                      currency: 'INR',
+                      name: 'FatafatDecor',
+                      description: `Remaining payment · Order #${o.id.slice(0, 8)}`,
+                      order_id: ord.razorpay_order_id,
+                      prefill: { name: o.customer?.name || '', contact: o.customer?.phone || '' },
+                      theme: { color: '#EC4899' },
+                      handler: async (resp) => {
+                        const v = await api('dp/collect-payment/verify-online', {
+                          method: 'POST',
+                          body: {
+                            razorpay_order_id: resp.razorpay_order_id,
+                            razorpay_payment_id: resp.razorpay_payment_id,
+                            razorpay_signature: resp.razorpay_signature,
+                          },
+                        })
+                        if (v?.error) { showToast(v.error, 'error'); return }
+                        setDpSelectedOrder(prev => ({ ...prev, payment_status: 'full' }))
+                        showToast('Online payment received!', 'success')
+                      },
+                      modal: { ondismiss: () => showToast('Payment cancelled', 'error') },
+                    })
+                    rzp.open()
+                  } catch (e) { showToast('Could not start online payment', 'error') }
                 }} variant="outline" className="flex-1 border-pink-200 text-pink-500 font-semibold rounded-xl">
                   <CreditCard className="w-4 h-4 mr-1" /> Online
                 </Button>
