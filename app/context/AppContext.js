@@ -27,6 +27,7 @@ export function AppProvider({ children }) {
   const [dpTimerSeconds, setDpTimerSeconds] = useState(0)
   const [faceScanImage, setFaceScanImage] = useState(null)
   const [otpInput, setOtpInput] = useState('')
+  const [giftOtpInput, setGiftOtpInput] = useState('')
   const dpVideoRef = useRef(null)
   const dpTimerRef = useRef(null)
   // Push / new-order notification state
@@ -418,8 +419,38 @@ export function AppProvider({ children }) {
       const data = await api('dp/update-gift-status', { method: 'POST', body: { order_id: orderId, status } })
       if (data.error) { showToast(data.error, 'error'); return }
       setDpSelectedGiftOrder(prev => ({ ...prev, delivery_status: status }))
-      showToast(`Status updated: ${status}`, 'success')
+      // Going en route auto-sends the confirmation OTP to the recipient (backend).
+      showToast(status === 'en_route'
+        ? 'On the way! Confirmation OTP sent to the recipient.'
+        : `Status updated: ${status}`, 'success')
     } catch { showToast('Update failed', 'error') }
+    finally { setLoading(false) }
+  }
+
+  // (Re)send the gift confirmation OTP to the recipient
+  const generateGiftOtp = async (orderId) => {
+    setLoading(true)
+    try {
+      const data = await api('dp/generate-gift-otp', { method: 'POST', body: { order_id: orderId } })
+      if (data.error) { showToast(data.error, 'error'); return }
+      showToast('OTP sent to the recipient.', 'success')
+    } catch { showToast('Could not send OTP', 'error') }
+    finally { setLoading(false) }
+  }
+
+  // Confirm gift hand-over with the recipient's OTP → delivered
+  const verifyGiftOtp = async (orderId) => {
+    if (!giftOtpInput || (giftOtpInput.length !== 4 && giftOtpInput.length !== 6)) {
+      showToast('Enter the 4- or 6-digit OTP', 'error'); return
+    }
+    setLoading(true)
+    try {
+      const data = await api('dp/verify-gift-otp', { method: 'POST', body: { order_id: orderId, otp: giftOtpInput } })
+      if (data.error) { showToast(data.error, 'error'); return }
+      setDpSelectedGiftOrder(prev => ({ ...prev, delivery_status: 'delivered' }))
+      setGiftOtpInput('')
+      showToast('Gift delivered & confirmed!', 'success')
+    } catch { showToast('OTP verification failed', 'error') }
     finally { setLoading(false) }
   }
 
@@ -438,6 +469,7 @@ export function AppProvider({ children }) {
     calMonth, setCalMonth, dpAuthForm, setDpAuthForm,
     dpActiveTimer, setDpActiveTimer, dpTimerSeconds, setDpTimerSeconds,
     faceScanImage, setFaceScanImage, otpInput, setOtpInput,
+    giftOtpInput, setGiftOtpInput,
     pendingOrders, setPendingOrders,
     pendingGiftOrders, setPendingGiftOrders,
     dpSelectedGiftOrder, setDpSelectedGiftOrder,
@@ -450,6 +482,7 @@ export function AppProvider({ children }) {
     startFaceScan, captureFace, submitFaceScan,
     verifyOtp, handleAcceptOrder, handleDeclineOrder,
     handleAcceptGiftOrder, handleDeclineGiftOrder, handleUpdateGiftStatus,
+    generateGiftOtp, verifyGiftOtp,
     refreshDashboard, formatTimer
   }
 

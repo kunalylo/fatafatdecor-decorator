@@ -1,9 +1,10 @@
 'use client'
 import { useApp } from '../context/AppContext'
 import { SCREENS } from '../lib/constants'
-import { ArrowLeft, MapPin, Phone, Package, CheckCircle, Navigation } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Package, CheckCircle, Navigation, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 const STATUS_STEPS = ['assigned', 'en_route', 'arrived', 'delivered']
 const STATUS_LABELS = { assigned: 'Assigned', en_route: 'En Route', arrived: 'Arrived', delivered: 'Delivered' }
@@ -18,7 +19,10 @@ function buildGiftMapsUrl(o) {
 }
 
 export default function DpGiftOrderScreen() {
-  const { dpSelectedGiftOrder: o, handleUpdateGiftStatus, navigate, loading, showToast } = useApp()
+  const {
+    dpSelectedGiftOrder: o, handleUpdateGiftStatus, navigate, loading, showToast,
+    giftOtpInput, setGiftOtpInput, generateGiftOtp, verifyGiftOtp,
+  } = useApp()
 
   if (!o) return null
 
@@ -27,7 +31,7 @@ export default function DpGiftOrderScreen() {
   const getNextAction = () => {
     if (o.delivery_status === 'assigned') return { label: '🚗 Start Navigation', next: 'en_route' }
     if (o.delivery_status === 'en_route') return { label: '📍 Arrived at Location', next: 'arrived' }
-    if (o.delivery_status === 'arrived') return { label: '✅ Gift Delivered', next: 'delivered' }
+    // 'arrived' → handled by the OTP confirmation card below (delivery needs the recipient OTP)
     return null
   }
 
@@ -166,6 +170,43 @@ export default function DpGiftOrderScreen() {
               {loading ? 'Updating...' : action.label}
             </Button>
           </div>
+        )}
+
+        {/* OTP confirmation — required to mark the gift as delivered */}
+        {o.delivery_status === 'arrived' && (
+          <Card className="rounded-2xl border-2 border-pink-200 bg-pink-50/40">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <KeyRound className="w-4 h-4 text-pink-500" />
+                <h3 className="font-bold text-sm text-gray-700">Confirm Delivery with OTP</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">
+                Ask the recipient for the 6-digit code they received by SMS, then enter it to confirm hand-over.
+              </p>
+              <Input
+                placeholder="Enter OTP"
+                value={giftOtpInput}
+                onChange={e => setGiftOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="bg-white border-gray-200 h-14 rounded-xl text-center text-2xl font-bold tracking-[0.5em]"
+                maxLength={6}
+                inputMode="numeric"
+              />
+              <Button
+                onClick={() => verifyGiftOtp(o.id)}
+                disabled={loading || (giftOtpInput.length !== 4 && giftOtpInput.length !== 6)}
+                className="w-full h-12 mt-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl"
+              >
+                {loading ? 'Confirming...' : '✅ Confirm Gift Delivered'}
+              </Button>
+              <button
+                onClick={() => generateGiftOtp(o.id)}
+                disabled={loading}
+                className="w-full mt-2 text-xs font-semibold text-pink-500 py-2"
+              >
+                ↺ Resend OTP to recipient
+              </button>
+            </CardContent>
+          </Card>
         )}
 
         {o.delivery_status === 'delivered' && (
