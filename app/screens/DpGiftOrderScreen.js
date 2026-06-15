@@ -86,8 +86,13 @@ export default function DpGiftOrderScreen() {
               <h3 className="font-bold text-sm text-gray-700">Gift Items to Deliver</h3>
             </div>
             {(o.gift_items || []).map((g, i) => (
-              <div key={i} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                <span className="text-sm text-gray-700">{g.quantity}× {g.name}</span>
+              <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                {g.image_url ? (
+                  <img src={g.image_url} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 bg-gray-50 shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-pink-50 flex items-center justify-center text-2xl shrink-0">🎁</div>
+                )}
+                <span className="text-sm text-gray-700 flex-1">{g.quantity}× {g.name}</span>
                 <span className="text-sm font-semibold text-pink-600">₹{(g.price * g.quantity).toLocaleString('en-IN')}</span>
               </div>
             ))}

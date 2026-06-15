@@ -158,6 +158,13 @@ export default function DpHomeScreen() {
                 </div>
                 <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg">100% Paid</span>
               </div>
+              {(o.gift_items || []).some(g => g.image_url) && (
+                <div className="flex gap-2 mb-2">
+                  {o.gift_items.filter(g => g.image_url).slice(0, 4).map((g, i) => (
+                    <img key={i} src={g.image_url} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-pink-100 bg-gray-50" />
+                  ))}
+                </div>
+              )}
               <div className="mb-3">
                 {o.gift_items?.slice(0, 2).map((g, i) => (
                   <p key={i} className="text-xs text-gray-600">{g.quantity}× {g.name}</p>
