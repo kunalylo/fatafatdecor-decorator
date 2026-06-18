@@ -150,12 +150,36 @@ export function AppProvider({ children }) {
     })
   }, [alertNewOrders])
 
+  // Auto-detect the decorator's city from GPS (browser geolocation + a free, keyless reverse
+  // geocoder). Keeps the city in sync with where they actually are, so a Pune decorator never
+  // gets Ranchi orders. Falls back silently to the manual city picker if location is blocked.
+  const detectCity = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords
+      let address = ''
+      try {
+        const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+        const j = await r.json()
+        address = [j.city, j.locality, j.principalSubdivision].filter(Boolean).join(', ')
+      } catch {}
+      try {
+        const data = await api('dp/detect-city', { method: 'POST', body: { lat: latitude, lng: longitude, address } })
+        if (!data.error && data.city) {
+          setDpUser(prev => ({ ...prev, city: data.city }))
+          showToast(data.served ? `📍 You're in ${data.city} — showing ${data.city} orders` : `📍 ${data.city} isn't a service area yet`, data.served ? 'success' : 'info')
+        }
+      } catch {}
+    }, () => {}, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 })
+  }, [showToast])
+
   useEffect(() => {
     if (!dpUser) return
     refreshDashboard(dpUser.id)
     api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
     api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })
     api('cities').then(d => { if (Array.isArray(d)) setCities(d) })
+    detectCity()
     // Poll for new incoming orders every 15s
     const orderPoll = setInterval(() => refreshDashboard(dpUser.id), 15000)
     return () => clearInterval(orderPoll)
@@ -485,7 +509,7 @@ export function AppProvider({ children }) {
     dpActiveTimer, setDpActiveTimer, dpTimerSeconds, setDpTimerSeconds,
     faceScanImage, setFaceScanImage, otpInput, setOtpInput,
     giftOtpInput, setGiftOtpInput,
-    cities, handleUpdateCity,
+    cities, handleUpdateCity, detectCity,
     pendingOrders, setPendingOrders,
     pendingGiftOrders, setPendingGiftOrders,
     dpSelectedGiftOrder, setDpSelectedGiftOrder,

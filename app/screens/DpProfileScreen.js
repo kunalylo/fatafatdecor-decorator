@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext'
 import { api } from '../lib/constants'
 
 export default function DpProfileScreen() {
-  const { dpUser, dpEarnings, handleDpLogout, showToast, loading: globalLoading, cities, handleUpdateCity } = useApp()
+  const { dpUser, dpEarnings, handleDpLogout, showToast, loading: globalLoading, cities, handleUpdateCity, detectCity } = useApp()
   const [showPwdModal, setShowPwdModal] = useState(false)
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
@@ -124,8 +124,16 @@ export default function DpProfileScreen() {
               </span>
             </div>
             <p className="text-xs text-gray-400 mb-3">
-              You only get orders &amp; notifications from this city. Update it whenever you move.
+              Auto-detected from your location — you only get orders &amp; notifications from the city you&apos;re currently in.
             </p>
+            <button
+              onClick={detectCity}
+              disabled={globalLoading}
+              className="w-full mb-3 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              📍 Update from my location
+            </button>
+            <p className="text-xs text-gray-400 mb-2">or set it manually:</p>
             <div className="flex flex-wrap gap-2">
               {(cities || []).map(c => (
                 <button
