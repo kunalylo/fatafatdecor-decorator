@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext'
 import { api } from '../lib/constants'
 
 export default function DpProfileScreen() {
-  const { dpUser, dpEarnings, handleDpLogout, showToast, loading: globalLoading } = useApp()
+  const { dpUser, dpEarnings, handleDpLogout, showToast, loading: globalLoading, cities, handleUpdateCity } = useApp()
   const [showPwdModal, setShowPwdModal] = useState(false)
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
@@ -110,6 +110,38 @@ export default function DpProfileScreen() {
               <span className="text-sm text-gray-700 flex items-center gap-1">
                 <Star className="w-3 h-3 text-yellow-500" /> {dpUser?.rating || '5.0'}
               </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Your City — you only receive orders from the city set here */}
+        <Card className={`border ${dpUser?.city ? 'border-gray-100' : 'border-pink-300 bg-pink-50/40'}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-bold text-sm text-gray-700">Your City</h3>
+              <span className={`text-xs font-semibold ${dpUser?.city ? 'text-green-600' : 'text-pink-500'}`}>
+                {dpUser?.city || 'Not set'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              You only get orders &amp; notifications from this city. Update it whenever you move.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(cities || []).map(c => (
+                <button
+                  key={c.id || c.name}
+                  onClick={() => handleUpdateCity(c.name)}
+                  disabled={globalLoading}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    dpUser?.city && dpUser.city.toLowerCase() === c.name.toLowerCase()
+                      ? 'bg-pink-500 text-white border-pink-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-pink-300'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+              {(cities || []).length === 0 && <p className="text-xs text-gray-400">Loading cities…</p>}
             </div>
           </CardContent>
         </Card>

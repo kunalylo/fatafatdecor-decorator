@@ -22,11 +22,12 @@ export default function DpHomeScreen() {
     dpUser, dpDashboard, dpOrders, setDpOrders, dpActiveTimer, dpTimerSeconds,
     pendingOrders, pendingGiftOrders, loading, navigate, refreshDashboard, handleAcceptOrder,
     handleDeclineOrder, handleAcceptGiftOrder, handleDeclineGiftOrder, formatTimer, setDpSelectedOrder,
-    showToast
+    setDpSelectedGiftOrder, showToast
   } = useApp()
   const today = dpDashboard?.date || new Date().toISOString().split('T')[0]
   const todayOrders = dpDashboard?.today_orders || []
   const activeOrders = dpDashboard?.active_orders || []
+  const activeGiftOrders = dpDashboard?.active_gift_orders || []
   const refreshDp = () => {
     refreshDashboard(dpUser.id)
     api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
@@ -226,6 +227,27 @@ export default function DpHomeScreen() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-700">#{o.id.slice(0, 8)}</p>
                   <p className="text-xs text-gray-400">{o.delivery_slot?.date} at {o.delivery_slot?.hour}:00</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {activeGiftOrders.length > 0 && (
+        <div className="px-4 mt-4">
+          <h2 className="font-bold text-base text-gray-800 mb-3">Active Gift Deliveries</h2>
+          {activeGiftOrders.map(o => (
+            <Card key={o.id} className="border-2 border-pink-200 mb-2 cursor-pointer" onClick={async () => {
+              const detail = await api(`dp/gift-order-detail/${o.id}`)
+              if (!detail.error) { setDpSelectedGiftOrder(detail); navigate(SCREENS.DP_GIFT_ORDER) }
+            }}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-pink-50 flex items-center justify-center text-lg">🎁</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-700">Gift #{o.id.slice(0, 8)}</p>
+                  <p className="text-xs text-gray-400 capitalize">{(o.delivery_status || '').replace('_', ' ')} · {o.gift_items?.length || 0} item{(o.gift_items?.length || 0) !== 1 ? 's' : ''}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300" />
               </CardContent>

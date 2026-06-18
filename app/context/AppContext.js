@@ -28,6 +28,7 @@ export function AppProvider({ children }) {
   const [faceScanImage, setFaceScanImage] = useState(null)
   const [otpInput, setOtpInput] = useState('')
   const [giftOtpInput, setGiftOtpInput] = useState('')
+  const [cities, setCities] = useState([])
   const dpVideoRef = useRef(null)
   const dpTimerRef = useRef(null)
   // Push / new-order notification state
@@ -154,6 +155,7 @@ export function AppProvider({ children }) {
     refreshDashboard(dpUser.id)
     api(`dp/orders/${dpUser.id}`).then(d => { if (!d.error) setDpOrders(d) })
     api(`dp/earnings/${dpUser.id}`).then(d => { if (!d.error) setDpEarnings(d) })
+    api('cities').then(d => { if (Array.isArray(d)) setCities(d) })
     // Poll for new incoming orders every 15s
     const orderPoll = setInterval(() => refreshDashboard(dpUser.id), 15000)
     return () => clearInterval(orderPoll)
@@ -454,6 +456,19 @@ export function AppProvider({ children }) {
     finally { setLoading(false) }
   }
 
+  // Decorator sets the city they currently work in → they only get orders from that city.
+  const handleUpdateCity = async (city) => {
+    setLoading(true)
+    try {
+      const data = await api('dp/update-city', { method: 'POST', body: { city } })
+      if (data.error) { showToast(data.error, 'error'); return false }
+      setDpUser(prev => ({ ...prev, city: data.city }))
+      showToast(`City set to ${data.city}. You'll now get orders from ${data.city} only.`, 'success')
+      return true
+    } catch { showToast('Could not update city', 'error'); return false }
+    finally { setLoading(false) }
+  }
+
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60)
     const s = secs % 60
@@ -470,6 +485,7 @@ export function AppProvider({ children }) {
     dpActiveTimer, setDpActiveTimer, dpTimerSeconds, setDpTimerSeconds,
     faceScanImage, setFaceScanImage, otpInput, setOtpInput,
     giftOtpInput, setGiftOtpInput,
+    cities, handleUpdateCity,
     pendingOrders, setPendingOrders,
     pendingGiftOrders, setPendingGiftOrders,
     dpSelectedGiftOrder, setDpSelectedGiftOrder,
