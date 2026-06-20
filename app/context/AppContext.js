@@ -377,10 +377,10 @@ export function AppProvider({ children }) {
       const data = await api('dp/verify-otp', { method: 'POST', body: { order_id: orderId, otp: otpInput } })
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('OTP verified. Decoration started.', 'success')
-      // Start 1-hour timer (3600 seconds) and persist end time to localStorage
-      const endTime = Date.now() + 3600 * 1000
+      // Start 2-hour timer (7200 seconds) and persist end time to localStorage
+      const endTime = Date.now() + 7200 * 1000
       try { localStorage.setItem('fd_dp_timer', JSON.stringify({ orderId, endTime })) } catch {}
-      setDpTimerSeconds(3600)
+      setDpTimerSeconds(7200)
       setDpActiveTimer(orderId)
       setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'decorating' }))
       navigate(SCREENS.DP_ACTIVE_JOB)
@@ -493,10 +493,25 @@ export function AppProvider({ children }) {
     finally { setLoading(false) }
   }
 
+  // Add 5 more minutes to the running job timer (persists the new end time)
+  const extendTimer = () => {
+    if (!dpActiveTimer) return
+    setDpTimerSeconds(prev => {
+      const next = prev + 300
+      try { localStorage.setItem('fd_dp_timer', JSON.stringify({ orderId: dpActiveTimer, endTime: Date.now() + next * 1000 })) } catch {}
+      return next
+    })
+    showToast('Added 5 minutes', 'success')
+  }
+
   const formatTimer = (secs) => {
-    const m = Math.floor(secs / 60)
-    const s = secs % 60
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    const s = Math.max(0, Math.floor(secs))
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const r = s % 60
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+      : `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
   }
 
   const ctxValue = {
@@ -523,7 +538,7 @@ export function AppProvider({ children }) {
     verifyOtp, handleAcceptOrder, handleDeclineOrder,
     handleAcceptGiftOrder, handleDeclineGiftOrder, handleUpdateGiftStatus,
     generateGiftOtp, verifyGiftOtp,
-    refreshDashboard, formatTimer
+    refreshDashboard, formatTimer, extendTimer
   }
 
   return <AppContext.Provider value={ctxValue}>{children}</AppContext.Provider>

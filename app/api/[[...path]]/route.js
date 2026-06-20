@@ -518,7 +518,7 @@ async function handleRoute(request, { params }) {
       if (!phone) return err('Phone required')
       const dp = await db.collection('delivery_persons').findOne({ phone })
       if (!dp) return err('Delivery person not found', 404)
-      if (dp.password && password && dp.password !== hashPwd(password)) return err('Invalid password', 401)
+      if (dp.password && (!password || dp.password !== hashPwd(password))) return err('Invalid password', 401)
       const { _id, password: _, ...safe } = dp; return ok(safe)
     }
     if (path[0] === 'dp' && path[1] === 'dashboard' && path[2] && method === 'GET') {

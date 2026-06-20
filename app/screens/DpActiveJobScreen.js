@@ -9,7 +9,7 @@ import { SCREENS, api } from '../lib/constants'
 export default function DpActiveJobScreen() {
   const {
     dpUser, dpSelectedOrder, setDpSelectedOrder, dpTimerSeconds, setDpActiveTimer,
-    setDpTimerSeconds, dpTimerRef, navigate, showToast, formatTimer
+    setDpTimerSeconds, dpTimerRef, navigate, showToast, formatTimer, extendTimer
   } = useApp()
   const o = dpSelectedOrder
 
@@ -37,6 +37,13 @@ export default function DpActiveJobScreen() {
                 <span className="text-xs font-bold">Less than 5 minutes!</span>
               </div>
             )}
+            <button
+              onClick={extendTimer}
+              className="mt-4 px-5 py-2 rounded-xl border-2 border-pink-200 text-pink-600 text-sm font-bold hover:bg-pink-50"
+            >
+              ＋ Add 5 minutes
+            </button>
+            <p className="text-[11px] text-gray-400 mt-2">Finished early? You can complete the job anytime below.</p>
           </CardContent>
         </Card>
 

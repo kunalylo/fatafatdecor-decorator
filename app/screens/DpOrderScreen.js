@@ -26,7 +26,7 @@ function buildMapsUrl(o) {
 export default function DpOrderScreen() {
   const {
     dpSelectedOrder, setDpSelectedOrder, dpUser, loading, dpTimerSeconds,
-    navigate, showToast, formatTimer, setDpActiveTimer, setDpTimerSeconds, dpTimerRef
+    navigate, showToast, formatTimer, setDpActiveTimer, setDpTimerSeconds, dpTimerRef, extendTimer
   } = useApp()
   const o = dpSelectedOrder
   if (!o) return null
@@ -337,16 +337,21 @@ export default function DpOrderScreen() {
               <Timer className="w-8 h-8 text-orange-500 mx-auto mb-2" />
               <p className="text-xl font-bold text-orange-600">{formatTimer(dpTimerSeconds)}</p>
               <p className="text-xs text-orange-400 mb-3">Decoration in progress</p>
-              <Button onClick={async () => {
-                const r = await api('dp/complete', { method: 'POST', body: { order_id: o.id } })
-                if (r?.error) { showToast(r.error, 'error'); return }
-                try { localStorage.removeItem('fd_dp_timer') } catch {}
-                setDpActiveTimer(null); setDpTimerSeconds(0)
-                setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'delivered' }))
-                showToast('Job completed!', 'success')
-              }} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl">
-                <CheckCircle2 className="w-4 h-4 mr-2" /> Mark as Completed
-              </Button>
+              <div className="flex gap-2">
+                <button onClick={extendTimer} className="px-3 rounded-xl border-2 border-orange-300 text-orange-600 text-sm font-bold hover:bg-orange-100">
+                  ＋ 5 min
+                </button>
+                <Button onClick={async () => {
+                  const r = await api('dp/complete', { method: 'POST', body: { order_id: o.id } })
+                  if (r?.error) { showToast(r.error, 'error'); return }
+                  try { localStorage.removeItem('fd_dp_timer') } catch {}
+                  setDpActiveTimer(null); setDpTimerSeconds(0)
+                  setDpSelectedOrder(prev => ({ ...prev, delivery_status: 'delivered' }))
+                  showToast('Job completed!', 'success')
+                }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl">
+                  <CheckCircle2 className="w-4 h-4 mr-2" /> Mark as Completed
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
