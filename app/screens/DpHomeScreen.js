@@ -119,11 +119,17 @@ export default function DpHomeScreen() {
                     Items: {(o.items || []).slice(0, 3).map(i => i.name).join(', ')}{o.items.length > 3 ? ` +${o.items.length - 3} more` : ''}
                   </p>
                 )}
+                {o.schedule_conflict && (
+                  <div className="mb-3 flex items-start gap-1.5 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+                    <span>⛔</span>
+                    <span>Clashes with your {o.schedule_conflict.kind === 'gift' ? 'gift delivery' : 'decoration job'} at {o.schedule_conflict.hour}:00 — finish that first.</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
-                    disabled={loading}
+                    disabled={loading || !!o.schedule_conflict}
                     onClick={() => handleAcceptOrder(o.id)}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl h-11 text-sm"
+                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-bold rounded-xl h-11 text-sm"
                   >
                     <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept
                   </Button>
@@ -173,13 +179,20 @@ export default function DpHomeScreen() {
                 {(o.gift_items?.length || 0) > 2 && <p className="text-xs text-gray-400">+{o.gift_items.length - 2} more</p>}
               </div>
               <p className="text-xs text-gray-400 mb-3">📍 {o.delivery_address}</p>
+              {o.schedule_conflict && (
+                <div className="mb-3 flex items-start gap-1.5 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+                  <span>⛔</span>
+                  <span>Clashes with your {o.schedule_conflict.kind === 'gift' ? 'gift delivery' : 'decoration job'} at {o.schedule_conflict.hour}:00 — finish that first.</span>
+                </div>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => handleDeclineGiftOrder(o.id)}
                   className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold">
                   Decline
                 </button>
                 <button onClick={() => handleAcceptGiftOrder(o.id)}
-                  className="flex-2 flex-1 py-2.5 rounded-xl bg-pink-500 text-white text-sm font-bold">
+                  disabled={!!o.schedule_conflict}
+                  className="flex-2 flex-1 py-2.5 rounded-xl bg-pink-500 disabled:opacity-50 text-white text-sm font-bold">
                   Accept 🎁
                 </button>
               </div>
