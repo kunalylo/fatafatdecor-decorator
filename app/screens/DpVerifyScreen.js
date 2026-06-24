@@ -24,11 +24,10 @@ export default function DpVerifyScreen() {
   const capturePhoto = captureSelfie     || captureFace
   const rawSubmit    = submitSelfieProof || submitFaceScan
 
-  // Wrap the submit so we can update local order status after success
+  // Wrap the submit so we mark the order "arrived" ONLY when the upload actually succeeded.
   const submitProof = async (orderId) => {
-    await rawSubmit(orderId)
-    // If it didn't error (which rawSubmit handles via toast),
-    // mark the local order as "arrived" + selfie done
+    const ok = await rawSubmit(orderId)
+    if (!ok) return  // upload failed — leave the order en_route so the decorator can retry
     setDpSelectedOrder(prev => prev ? ({
       ...prev,
       delivery_status: 'arrived',

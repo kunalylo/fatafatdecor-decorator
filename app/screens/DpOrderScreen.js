@@ -15,8 +15,10 @@ import { SCREENS, api } from '../lib/constants'
 // customer's pinned address, falls back to a text address, and finally to
 // a plain search if nothing is set.
 function buildMapsUrl(o) {
-  if (o?.delivery_lat && o?.delivery_lng) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`
+  const lat = o?.delivery_lat ?? o?.delivery_location?.lat
+  const lng = o?.delivery_lng ?? o?.delivery_location?.lng
+  if (lat && lng) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
   }
   const addr = [o?.delivery_address, o?.delivery_landmark].filter(Boolean).join(', ')
   if (addr) return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`

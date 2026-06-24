@@ -10,8 +10,11 @@ const STATUS_STEPS = ['assigned', 'en_route', 'arrived', 'delivered']
 const STATUS_LABELS = { assigned: 'Assigned', en_route: 'En Route', arrived: 'Arrived', delivered: 'Delivered' }
 
 function buildGiftMapsUrl(o) {
-  if (o?.delivery_lat && o?.delivery_lng) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`
+  // Gift orders store the pin under delivery_location (not flat delivery_lat/lng).
+  const lat = o?.delivery_lat ?? o?.delivery_location?.lat
+  const lng = o?.delivery_lng ?? o?.delivery_location?.lng
+  if (lat && lng) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
   }
   const addr = [o?.delivery_address, o?.delivery_landmark].filter(Boolean).join(', ')
   if (addr) return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`

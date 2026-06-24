@@ -111,6 +111,9 @@ export function AppProvider({ children }) {
         if (remaining > 0) {
           setDpActiveTimer(orderId)
           setDpTimerSeconds(remaining)
+          // Reload the order being worked on so Active Job + "Complete" work after a page reload
+          // (the timer alone isn't enough — selectedOrder is needed to complete the job).
+          api(`dp/order-detail/${orderId}`).then(d => { if (d && !d.error) setDpSelectedOrder(d) }).catch(() => {})
         } else {
           localStorage.removeItem('fd_dp_timer')
         }
@@ -338,8 +341,10 @@ export function AppProvider({ children }) {
     if (stream) stream.getTracks().forEach(t => t.stop())
   }
 
+  // Returns true only when the proof actually uploaded — the caller must not flip the order to
+  // "arrived" on a failed upload (the backend would still have it as en_route).
   const submitSelfieProof = async (orderId) => {
-    if (!faceScanImage) { showToast('Please capture a selfie first', 'error'); return }
+    if (!faceScanImage) { showToast('Please capture a selfie first', 'error'); return false }
     setLoading(true)
     try {
       // Attach GPS coords if available — gives the backend a "was at site" audit
@@ -356,9 +361,10 @@ export function AppProvider({ children }) {
         method: 'POST',
         body: { order_id: orderId, selfie_image: faceScanImage, lat, lng }
       })
-      if (data.error) { showToast(data.error, 'error'); return }
+      if (data.error) { showToast(data.error, 'error'); return false }
       showToast('Selfie proof uploaded. Now enter customer OTP.', 'success')
-    } catch (e) { showToast('Upload failed', 'error') }
+      return true
+    } catch (e) { showToast('Upload failed', 'error'); return false }
     finally { setLoading(false) }
   }
 
@@ -422,6 +428,7 @@ export function AppProvider({ children }) {
       if (data.error) { showToast(data.error, 'error'); return }
       showToast('Gift order accepted!', 'success')
       setPendingGiftOrders(prev => prev.filter(o => o.id !== orderId))
+      if (dpUser?.id) refreshDashboard(dpUser.id)   // surface it under "Active Gift Deliveries" right away
       const detail = await api(`dp/gift-order-detail/${orderId}`)
       if (!detail.error) { setDpSelectedGiftOrder(detail); navigate(SCREENS.DP_GIFT_ORDER) }
     } catch { showToast('Failed to accept', 'error') }
