@@ -96,12 +96,10 @@ export default function DpGiftOrderScreen() {
                   <div className="w-14 h-14 rounded-xl bg-pink-50 flex items-center justify-center text-2xl shrink-0">🎁</div>
                 )}
                 <span className="text-sm text-gray-700 flex-1">{g.quantity}× {g.name}</span>
-                <span className="text-sm font-semibold text-pink-600">₹{(g.price * g.quantity).toLocaleString('en-IN')}</span>
               </div>
             ))}
-            <div className="mt-2 pt-2 border-t border-pink-100 flex justify-between font-bold">
-              <span className="text-sm text-gray-800">Total Value</span>
-              <span className="text-sm text-pink-600">₹{o.gift_total?.toLocaleString('en-IN')}</span>
+            <div className="mt-2 pt-2 border-t border-pink-100">
+              <span className="text-xs font-semibold text-green-600">Prepaid by customer — nothing to collect</span>
             </div>
           </CardContent>
         </Card>

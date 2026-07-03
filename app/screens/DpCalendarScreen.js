@@ -35,7 +35,7 @@ export default function DpCalendarScreen() {
                   <div className="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center"><Clock className="w-4 h-4 text-pink-500" /></div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-700">{o.delivery_slot.hour}:00 - {o.delivery_slot.hour + 1}:00</p>
-                    <p className="text-xs text-gray-400">#{o.id.slice(0, 8)} • Rs {o.total_cost}</p>
+                    <p className="text-xs text-gray-400">#{o.id.slice(0, 8)} • Collect ₹{Math.max(0, Math.round((o.total_cost || 0) - (o.payment_amount || 0))).toLocaleString('en-IN')}</p>
                   </div>
                   <Badge className={`text-[9px] capitalize ${o.delivery_status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-pink-100 text-pink-600'}`}>{o.delivery_status}</Badge>
                 </CardContent>

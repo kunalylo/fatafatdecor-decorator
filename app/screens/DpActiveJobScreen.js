@@ -61,8 +61,12 @@ export default function DpActiveJobScreen() {
                   <span className="text-sm">{o.customer?.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400 text-sm">Total</span>
-                  <span className="text-sm font-bold text-pink-500">Rs {o.total_cost}</span>
+                  <span className="text-gray-400 text-sm">To Collect</span>
+                  <span className="text-sm font-bold text-green-600">
+                    {Math.max(0, Math.round((o.total_cost || 0) - (o.payment_amount || 0))) > 0
+                      ? `Rs ${Math.max(0, Math.round((o.total_cost || 0) - (o.payment_amount || 0))).toLocaleString('en-IN')}`
+                      : 'Nothing — prepaid'}
+                  </span>
                 </div>
                 {o.delivery_address && (
                   <div className="flex items-start gap-2 pt-1 border-t border-gray-50">

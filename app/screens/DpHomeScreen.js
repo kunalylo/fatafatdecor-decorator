@@ -8,7 +8,7 @@ import {
   CheckCircle2, Trash2, Clock, ChevronRight, Truck, MapPin
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { SCREENS, api, LOGO_URL } from '../lib/constants'
+import { SCREENS, api, LOGO_URL, toCollect } from '../lib/constants'
 
 function greetingByTime() {
   const h = new Date().getHours()
@@ -110,7 +110,7 @@ export default function DpHomeScreen() {
                     )}
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    <p className="font-bold text-green-600 text-base">Rs {o.total_cost}</p>
+                    <p className="font-bold text-green-600 text-base">Collect ₹{toCollect(o).toLocaleString('en-IN')}</p>
                     <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">NEW</span>
                   </div>
                 </div>
@@ -161,7 +161,7 @@ export default function DpHomeScreen() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-bold text-sm text-gray-800">🎁 Gift Delivery</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{o.gift_items?.length} item{o.gift_items?.length !== 1 ? 's' : ''} · ₹{o.gift_total?.toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{o.gift_items?.length} item{o.gift_items?.length !== 1 ? 's' : ''} · Prepaid, nothing to collect</p>
                 </div>
                 <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg">100% Paid</span>
               </div>
@@ -219,7 +219,7 @@ export default function DpHomeScreen() {
                 <p className="text-xs text-gray-400">{o.delivery_slot?.hour}:00 - {o.delivery_slot?.hour + 1}:00</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold text-pink-500">Rs {o.total_cost}</p>
+                <p className="text-sm font-bold text-pink-500">{toCollect(o) > 0 ? `Collect ₹${toCollect(o).toLocaleString('en-IN')}` : 'Paid'}</p>
                 <Badge className={`text-[9px] capitalize ${o.delivery_status === 'delivered' ? 'bg-green-100 text-green-600' : o.delivery_status === 'decorating' ? 'bg-orange-100 text-orange-600' : 'bg-pink-100 text-pink-600'}`}>{o.delivery_status}</Badge>
               </div>
             </CardContent>

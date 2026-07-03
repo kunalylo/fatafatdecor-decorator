@@ -31,6 +31,10 @@ export const CREDIT_PACKAGES = [
   { credits: 10, price: 950, label: '10 Credits' }
 ]
 
+// Decorators never see the order total — only the balance they must collect on delivery.
+// (0 = fully prepaid, nothing to collect.)
+export const toCollect = (o) => Math.max(0, Math.round((o?.total_cost || 0) - (o?.payment_amount || 0)))
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 // Endpoints where a 401 should NOT trigger an auto-logout event —

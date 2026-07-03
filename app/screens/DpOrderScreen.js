@@ -135,16 +135,13 @@ export default function DpOrderScreen() {
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Customer</span><span className="text-sm font-semibold text-gray-700">{o.customer?.name}</span></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Phone</span><a href={`tel:${o.customer?.phone}`} className="text-sm font-semibold text-pink-500">{o.customer?.phone}</a></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Slot</span><span className="text-sm">{o.delivery_slot?.date} at {o.delivery_slot?.hour}:00</span></div>
-            {/* Reference-flow: show only the remaining amount to collect on delivery.
-                Legacy kit-flow: show the full customer total. */}
-            {isReferenceFlow ? (
-              <div className="flex justify-between items-center bg-green-50 -mx-1 px-3 py-2 rounded-lg border border-green-200">
-                <span className="text-sm font-semibold text-green-700">Collect on delivery</span>
-                <span className="text-base font-bold text-green-600">Rs {remainingToCollect.toLocaleString('en-IN')}</span>
-              </div>
-            ) : (
-              <div className="flex justify-between"><span className="text-gray-400 text-sm">Total</span><span className="text-sm font-bold text-pink-500">Rs {o.total_cost}</span></div>
-            )}
+            {/* Decorators never see the order total — only what they must collect on delivery. */}
+            <div className="flex justify-between items-center bg-green-50 -mx-1 px-3 py-2 rounded-lg border border-green-200">
+              <span className="text-sm font-semibold text-green-700">Collect on delivery</span>
+              <span className="text-base font-bold text-green-600">
+                {remainingToCollect > 0 ? `Rs ${remainingToCollect.toLocaleString('en-IN')}` : 'Nothing — prepaid'}
+              </span>
+            </div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Payment</span><Badge className="capitalize">{o.payment_status}</Badge></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Status</span><Badge className={`capitalize ${o.delivery_status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-pink-100 text-pink-600'}`}>{o.delivery_status}</Badge></div>
           </CardContent>
@@ -278,13 +275,8 @@ export default function DpOrderScreen() {
               {o.gift_items.map((g, i) => (
                 <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
                   <span className="text-sm text-gray-700">{g.quantity}× {g.name}</span>
-                  <span className="text-sm font-semibold text-pink-600">₹{(g.price * g.quantity).toLocaleString('en-IN')}</span>
                 </div>
               ))}
-              <div className="mt-2 pt-2 border-t border-pink-100 flex justify-between">
-                <span className="text-sm font-bold text-gray-700">Gifts Total</span>
-                <span className="text-sm font-bold text-pink-600">₹{o.gift_items.reduce((s, g) => s + g.price * g.quantity, 0).toLocaleString('en-IN')}</span>
-              </div>
             </CardContent>
           </Card>
         )}
