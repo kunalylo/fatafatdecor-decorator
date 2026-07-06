@@ -8,7 +8,7 @@ import {
   CheckCircle2, Trash2, Clock, ChevronRight, Truck, MapPin
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { SCREENS, api, LOGO_URL, toCollect } from '../lib/constants'
+import { SCREENS, api, LOGO_URL, toCollect, slotWindow } from '../lib/constants'
 
 function greetingByTime() {
   const h = new Date().getHours()
@@ -105,7 +105,7 @@ export default function DpHomeScreen() {
                     </div>
                     {o.delivery_slot && (
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {o.delivery_slot.date} · {o.delivery_slot.hour}:00–{o.delivery_slot.hour + 1}:00
+                        {o.delivery_slot.date} · {slotWindow(o.delivery_slot)}
                       </p>
                     )}
                   </div>
@@ -216,7 +216,7 @@ export default function DpHomeScreen() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-700">Order #{o.id.slice(0, 8)}</p>
-                <p className="text-xs text-gray-400">{o.delivery_slot?.hour}:00 - {o.delivery_slot?.hour + 1}:00</p>
+                <p className="text-xs text-gray-400">{slotWindow(o.delivery_slot)}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-pink-500">{toCollect(o) > 0 ? `Collect ₹${toCollect(o).toLocaleString('en-IN')}` : 'Paid'}</p>
@@ -239,7 +239,7 @@ export default function DpHomeScreen() {
                 <div className="w-11 h-11 rounded-xl bg-pink-50 flex items-center justify-center"><Truck className="w-5 h-5 text-pink-500" /></div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-700">#{o.id.slice(0, 8)}</p>
-                  <p className="text-xs text-gray-400">{o.delivery_slot?.date} at {o.delivery_slot?.hour}:00</p>
+                  <p className="text-xs text-gray-400">{o.delivery_slot?.date} · {slotWindow(o.delivery_slot)}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300" />
               </CardContent>

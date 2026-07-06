@@ -134,7 +134,7 @@ export default function DpOrderScreen() {
           <CardContent className="p-4 space-y-2">
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Customer</span><span className="text-sm font-semibold text-gray-700">{o.customer?.name}</span></div>
             <div className="flex justify-between"><span className="text-gray-400 text-sm">Phone</span><a href={`tel:${o.customer?.phone}`} className="text-sm font-semibold text-pink-500">{o.customer?.phone}</a></div>
-            <div className="flex justify-between"><span className="text-gray-400 text-sm">Slot</span><span className="text-sm">{o.delivery_slot?.date} at {o.delivery_slot?.hour}:00</span></div>
+            <div className="flex justify-between"><span className="text-gray-400 text-sm">Slot</span><span className="text-sm">{o.delivery_slot ? `${o.delivery_slot.date} · ${o.delivery_slot.hour}:00–${o.delivery_slot.hour + 2}:00` : '—'}</span></div>
             {/* Decorators never see the order total — only what they must collect on delivery. */}
             <div className="flex justify-between items-center bg-green-50 -mx-1 px-3 py-2 rounded-lg border border-green-200">
               <span className="text-sm font-semibold text-green-700">Collect on delivery</span>

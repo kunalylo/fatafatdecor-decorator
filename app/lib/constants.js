@@ -35,6 +35,10 @@ export const CREDIT_PACKAGES = [
 // (0 = fully prepaid, nothing to collect.)
 export const toCollect = (o) => Math.max(0, Math.round((o?.total_cost || 0) - (o?.payment_amount || 0)))
 
+// Display window for a booked slot. Decoration jobs occupy 2 hours on site; gift deliveries 1.
+export const slotWindow = (slot, hours = 2) =>
+  slot && slot.hour !== undefined && slot.hour !== null ? `${slot.hour}:00–${slot.hour + hours}:00` : '—'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 // Endpoints where a 401 should NOT trigger an auto-logout event —
