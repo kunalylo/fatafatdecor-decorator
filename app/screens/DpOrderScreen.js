@@ -204,16 +204,23 @@ export default function DpOrderScreen() {
                   <div key={category} className="mb-3">
                     <p className="text-[10px] font-bold text-pink-500 uppercase tracking-wide mb-1">{category}</p>
                     {list.map((item, i) => (
-                      <div key={item.id || `${category}-${i}`} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
+                      <div key={item.id || `${category}-${i}`} className="flex items-center gap-2.5 py-1.5 border-b border-gray-50">
                         <div className="w-5 h-5 rounded border-2 border-pink-300 flex items-center justify-center shrink-0">
                           <CheckCircle2 className="w-3 h-3 text-pink-400" />
                         </div>
+                        {/* Item photo — decorators buy by sight, not by SKU code */}
+                        {item.item_image_url ? (
+                          <img
+                            src={`${item.item_image_url}?tr=w-96,h-96,c-maintain_ratio`}
+                            alt=""
+                            className="w-11 h-11 rounded-lg object-cover border border-gray-200 bg-white shrink-0"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-lg bg-gray-50 border border-dashed border-gray-200 shrink-0" />
+                        )}
                         <span className="text-xs text-gray-700 flex-1">
                           <strong>{item.quantity}×</strong> {item.name}
                         </span>
-                        {item.matched_sku_code && (
-                          <span className="text-[9px] font-mono text-gray-400 truncate max-w-[140px]">{item.matched_sku_code}</span>
-                        )}
                       </div>
                     ))}
                   </div>
