@@ -218,9 +218,17 @@ export default function DpOrderScreen() {
                         ) : (
                           <div className="w-11 h-11 rounded-lg bg-gray-50 border border-dashed border-gray-200 shrink-0" />
                         )}
-                        <span className="text-xs text-gray-700 flex-1">
-                          <strong>{item.quantity}×</strong> {item.name}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-700">
+                            <strong>{item.quantity}×</strong> {item.name}
+                          </p>
+                          {(item.description || item.placement) && (
+                            <p className="text-[10px] text-gray-400 italic leading-tight">
+                              {item.description}
+                              {item.placement ? <span className="not-italic text-pink-400 font-semibold"> · {item.placement}</span> : ''}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
