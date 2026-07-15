@@ -168,7 +168,7 @@ export default function DpHomeScreen() {
               {(o.gift_items || []).some(g => g.image_url) && (
                 <div className="flex gap-2 mb-2">
                   {o.gift_items.filter(g => g.image_url).slice(0, 4).map((g, i) => (
-                    <img key={i} src={g.image_url} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-pink-100 bg-gray-50" />
+                    <img key={i} src={`${g.image_url}${g.image_url.includes("?") ? "&" : "?"}tr=w-160,q-80`} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-pink-100 bg-gray-50" />
                   ))}
                 </div>
               )}

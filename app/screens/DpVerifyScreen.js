@@ -41,7 +41,7 @@ export default function DpVerifyScreen() {
   if (!o) return null
 
   // If selfie is done (order status arrived), enable OTP section
-  const selfieUploaded = faceScanImage && (o.delivery_status === 'arrived' || o.selfie_proof)
+  const selfieUploaded = faceScanImage && (o.delivery_status === 'arrived' || o.selfie_proof || o.selfie_proof_done)
 
   return (
     <div className="slide-up pb-24 bg-white min-h-screen">

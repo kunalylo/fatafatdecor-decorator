@@ -58,7 +58,7 @@ export default function DpOrderScreen() {
                 <Sparkles className="w-5 h-5 text-pink-500" />
                 <span className="text-xs font-semibold text-pink-500 uppercase tracking-wide">Recreate This Look</span>
               </div>
-              <img src={referenceImage} alt="Reference target" className="w-full rounded-xl border border-pink-200 bg-white" />
+              <img src={`${referenceImage}${referenceImage.includes("?") ? "&" : "?"}tr=w-800,q-80`} alt="Reference target" className="w-full rounded-xl border border-pink-200 bg-white" />
               <p className="text-[11px] text-gray-500 mt-2 text-center">This is what the customer expects — match the style</p>
             </CardContent>
           </Card>
@@ -88,7 +88,7 @@ export default function DpOrderScreen() {
                 <div className="space-y-1">
                   <div className="aspect-square overflow-hidden rounded-lg border-2 border-pink-300 bg-pink-50">
                     {referenceImage ? (
-                      <img src={referenceImage} alt="Reference" className="w-full h-full object-cover cursor-zoom-in"
+                      <img src={`${referenceImage}${referenceImage.includes('?') ? '&' : '?'}tr=w-400,q-80`} alt="Reference" className="w-full h-full object-cover cursor-zoom-in"
                         onClick={() => window.open(referenceImage, '_blank')} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">—</div>
@@ -100,7 +100,7 @@ export default function DpOrderScreen() {
                 <div className="space-y-1">
                   <div className="aspect-square overflow-hidden rounded-lg border-2 border-blue-300 bg-blue-50">
                     {o.original_image_url ? (
-                      <img src={o.original_image_url} alt="Customer's room" className="w-full h-full object-cover cursor-zoom-in"
+                      <img src={`${o.original_image_url}${o.original_image_url.includes('?') ? '&' : '?'}tr=w-400,q-80`} alt="Customer's room" className="w-full h-full object-cover cursor-zoom-in"
                         onClick={() => window.open(o.original_image_url, '_blank')} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No photo</div>
@@ -112,7 +112,7 @@ export default function DpOrderScreen() {
                 <div className="space-y-1">
                   <div className="aspect-square overflow-hidden rounded-lg border-2 border-purple-300 bg-purple-50">
                     {o.decorated_image ? (
-                      <img src={o.decorated_image} alt="AI preview" className="w-full h-full object-cover cursor-zoom-in"
+                      <img src={`${o.decorated_image}${o.decorated_image.includes('?') ? '&' : '?'}tr=w-400,q-80`} alt="AI preview" className="w-full h-full object-cover cursor-zoom-in"
                         onClick={() => window.open(o.decorated_image, '_blank')} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">—</div>
@@ -127,7 +127,7 @@ export default function DpOrderScreen() {
         ) : (
           /* Legacy kit flow — single decorated image */
           o.decorated_image && (
-            <img src={o.decorated_image} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
+            <img src={`${o.decorated_image}${o.decorated_image.includes("?") ? "&" : "?"}tr=w-800,q-80`} alt="Design" className="w-full h-40 object-cover rounded-xl border border-pink-100" />
           )
         )}
         <Card className="border border-gray-100">
@@ -526,7 +526,7 @@ function CompletionPhotosCard({ order, setDpSelectedOrder, showToast }) {
           <div className="grid grid-cols-3 gap-2 mb-3">
             {photos.map((p, i) => (
               <div key={p.url || i} className="relative aspect-square rounded-lg overflow-hidden border border-emerald-200 bg-white">
-                <img src={p.url} alt={`Completion ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in"
+                <img src={`${p.url}${p.url.includes("?") ? "&" : "?"}tr=w-300,q-80`} alt={`Completion ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in"
                   onClick={() => window.open(p.url, '_blank')} />
                 <button onClick={() => removePhoto(i)}
                   className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow">

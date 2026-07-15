@@ -91,7 +91,7 @@ export default function DpGiftOrderScreen() {
             {(o.gift_items || []).map((g, i) => (
               <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                 {g.image_url ? (
-                  <img src={g.image_url} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 bg-gray-50 shrink-0" />
+                  <img src={`${g.image_url}${g.image_url.includes("?") ? "&" : "?"}tr=w-160,q-80`} alt={g.name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 bg-gray-50 shrink-0" />
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-pink-50 flex items-center justify-center text-2xl shrink-0">🎁</div>
                 )}

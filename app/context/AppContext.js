@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
   const swRegRef = useRef(null)
   const seenOrderIdsRef = useRef(new Set())
   const primedRef = useRef(false)
+  const lastDashJsonRef = useRef('')
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type })
@@ -133,6 +134,11 @@ export function AppProvider({ children }) {
   const refreshDashboard = useCallback((uid) => {
     api(`dp/dashboard/${uid}`).then(d => {
       if (!d.error) {
+        // Identical payload (the common case on a 15s poll) → skip every setState
+        // so the whole app tree doesn't re-render for nothing.
+        const fingerprint = JSON.stringify(d)
+        if (fingerprint === lastDashJsonRef.current) return
+        lastDashJsonRef.current = fingerprint
         setDpDashboard(d)
         const pending = d.pending_orders || []
         const pendingGifts = d.pending_gift_orders || []
@@ -287,6 +293,7 @@ export function AppProvider({ children }) {
     } catch {}
     seenOrderIdsRef.current = new Set()
     primedRef.current = false
+    lastDashJsonRef.current = ''
     setDpUser(null)
     setDpDashboard(null)
     setDpOrders([])
