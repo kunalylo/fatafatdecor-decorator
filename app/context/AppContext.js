@@ -141,6 +141,17 @@ export function AppProvider({ children }) {
         if (fingerprint === lastDashJsonRef.current) return
         lastDashJsonRef.current = fingerprint
         setDpDashboard(d)
+        // Keep the cached profile in sync with the server — the browser copy in localStorage
+        // can go stale (e.g. the decorator's city was changed elsewhere, or a served city was
+        // removed from admin), which otherwise shows an outdated "Your City".
+        if (d.delivery_person) {
+          setDpUser(prev => {
+            if (!prev) return prev
+            const s = d.delivery_person
+            if (prev.city === s.city && prev.rating === s.rating && prev.total_deliveries === s.total_deliveries && prev.is_active === s.is_active) return prev
+            return { ...prev, city: s.city, rating: s.rating, total_deliveries: s.total_deliveries, is_active: s.is_active }
+          })
+        }
         const pending = d.pending_orders || []
         const pendingGifts = d.pending_gift_orders || []
         setPendingOrders(pending)
