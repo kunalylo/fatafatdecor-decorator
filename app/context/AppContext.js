@@ -197,13 +197,15 @@ export function AppProvider({ children }) {
         const data = await api('dp/detect-city', { method: 'POST', body: { lat: latitude, lng: longitude, address, city: place } })
         if (data.error) { say(data.error, 'error'); return }
         if (data.city) {
-          setDpUser(prev => ({ ...prev, city: data.city }))
-          say(`📍 You're in ${data.city} — now showing ${data.city} orders`, 'success')
-          if (dpUser?.id) refreshDashboard(dpUser.id)   // surface the new city's orders immediately
+          setDpUser(prev => ({ ...prev, city: data.city }))   // always reflect the real location
+          if (data.served) {
+            say(`📍 You're in ${data.city} — now showing ${data.city} orders`, 'success')
+            if (dpUser?.id) refreshDashboard(dpUser.id)        // surface that city's orders immediately
+          } else {
+            say(`📍 Location set to ${data.city}. No service area here yet — you'll get orders once you're in one.`, 'info')
+          }
         } else {
-          say(data.detected
-            ? `📍 You're in ${data.detected} — not a service area yet. Set your city manually below.`
-            : 'Couldn’t match your location to a service area. Set your city manually below.', 'info')
+          say('Couldn’t read your location. Make sure GPS/location is on, then try again.', 'error')
         }
       } catch {
         say('Couldn’t update your location. Please try again.', 'error')
