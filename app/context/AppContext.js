@@ -29,6 +29,7 @@ export function AppProvider({ children }) {
   const [otpInput, setOtpInput] = useState('')
   const [giftOtpInput, setGiftOtpInput] = useState('')
   const [cities, setCities] = useState([])
+  const [detectingLocation, setDetectingLocation] = useState(false)
   const dpVideoRef = useRef(null)
   const dpTimerRef = useRef(null)
   // Push / new-order notification state
@@ -162,25 +163,50 @@ export function AppProvider({ children }) {
   // Auto-detect the decorator's city from GPS (browser geolocation + a free, keyless reverse
   // geocoder). Keeps the city in sync with where they actually are, so a Pune decorator never
   // gets Ranchi orders. Falls back silently to the manual city picker if location is blocked.
-  const detectCity = useCallback(() => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+  // `announce=true` (the button) gives feedback for EVERY outcome — success, not-served,
+  // permission blocked, timeout, error — so the button never looks dead. The silent auto-call
+  // on login passes announce=false so it doesn't nag on failure.
+  const detectCity = useCallback((announce = false) => {
+    const say = (msg, type) => { if (announce) showToast(msg, type) }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      say('Location isn’t available on this device.', 'error'); return
+    }
+    if (announce) setDetectingLocation(true)
+    const done = () => setDetectingLocation(false)
     navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords
-      let address = ''
       try {
-        const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
-        const j = await r.json()
-        address = [j.city, j.locality, j.principalSubdivision].filter(Boolean).join(', ')
-      } catch {}
-      try {
-        const data = await api('dp/detect-city', { method: 'POST', body: { lat: latitude, lng: longitude, address } })
-        if (!data.error && data.city) {
+        const { latitude, longitude } = pos.coords
+        let address = '', place = ''
+        try {
+          const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+          const j = await r.json()
+          place = j.city || j.locality || ''
+          address = [j.city, j.locality, j.principalSubdivision].filter(Boolean).join(', ')
+        } catch {}
+        const data = await api('dp/detect-city', { method: 'POST', body: { lat: latitude, lng: longitude, address, city: place } })
+        if (data.error) { say(data.error, 'error'); return }
+        if (data.city) {
           setDpUser(prev => ({ ...prev, city: data.city }))
-          showToast(data.served ? `📍 You're in ${data.city} — showing ${data.city} orders` : `📍 ${data.city} isn't a service area yet`, data.served ? 'success' : 'info')
+          say(`📍 You're in ${data.city} — now showing ${data.city} orders`, 'success')
+          if (dpUser?.id) refreshDashboard(dpUser.id)   // surface the new city's orders immediately
+        } else {
+          say(data.detected
+            ? `📍 You're in ${data.detected} — not a service area yet. Set your city manually below.`
+            : 'Couldn’t match your location to a service area. Set your city manually below.', 'info')
         }
-      } catch {}
-    }, () => {}, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 })
-  }, [showToast])
+      } catch {
+        say('Couldn’t update your location. Please try again.', 'error')
+      } finally { done() }
+    }, (geErr) => {
+      done()
+      const m = geErr && geErr.code === 1
+        ? 'Location is blocked. Allow location for this site in your browser, then tap again.'
+        : geErr && geErr.code === 3
+        ? 'Getting your location timed out. Try again.'
+        : 'Couldn’t get your location. Make sure location/GPS is on.'
+      say(m, 'error')
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 })
+  }, [showToast, refreshDashboard, dpUser?.id])
 
   useEffect(() => {
     if (!dpUser) return
@@ -538,7 +564,7 @@ export function AppProvider({ children }) {
     dpActiveTimer, setDpActiveTimer, dpTimerSeconds, setDpTimerSeconds,
     faceScanImage, setFaceScanImage, otpInput, setOtpInput,
     giftOtpInput, setGiftOtpInput,
-    cities, handleUpdateCity, detectCity,
+    cities, handleUpdateCity, detectCity, detectingLocation,
     pendingOrders, setPendingOrders,
     pendingGiftOrders, setPendingGiftOrders,
     dpSelectedGiftOrder, setDpSelectedGiftOrder,
